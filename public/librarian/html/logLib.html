@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCIT Library</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/login.css">
+</head>
+
+<body>
+<div class="card">
+    <div class="logo-container">
+        <img src="LOGOFIN.png" alt="Library Logo">
+    </div>
+
+    <div class="subtitle">Sign in as Librarian</div>
+
+    <div class="tabs">
+        <button id="loginTab" class="active">Librarian Login</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="active" onsubmit="loginLibrarian(event)">
+        <input type="text" id="lib_id" placeholder="Librarian ID" required>
+        <input type="password" id="pin" placeholder="PIN" required>
+
+        <div class="options">
+            <label><input type="checkbox"> Remember Me</label>
+        </div>
+
+        <div class="error" id="loginError"></div>
+
+        <button type="submit" class="submit">Login</button>
+    </form>
+</div>
+
+<script>
+    const SERVER = window.location.origin;
+
+    if (localStorage.getItem("token") && localStorage.getItem("role") === "librarian") {
+        window.location.href = "BlibDash.html";
+    }
+
+    async function loginLibrarian(e) {
+        e.preventDefault();
+        const lib_id   = document.getElementById("lib_id").value.trim();
+        const pin      = document.getElementById("pin").value.trim();
+        const errorDiv = document.getElementById("loginError");
+
+        if (!lib_id || !pin) {
+            errorDiv.innerText = "Please fill in all fields.";
+            return;
+        }
+
+        errorDiv.innerText = "";
+
+        try {
+            const res  = await fetch(`${SERVER}/api/librarians/login`, {
+                method:  "POST",
+                headers: { "Content-Type": "application/json" },
+                body:    JSON.stringify({ lib_id, pin })
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                localStorage.setItem("token",     data.token);
+                localStorage.setItem("role",      "librarian");
+                localStorage.setItem("historyId", data.historyId);
+                window.location.href = "BlibDash.html";
+            } else {
+                errorDiv.innerText = data.message || "Login failed.";
+            }
+        } catch (err) {
+            errorDiv.innerText = "Cannot connect to server.";
+        }
+    }
+</script>
+</body>
+</html>

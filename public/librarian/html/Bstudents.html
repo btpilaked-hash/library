@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/AcssStudent.css">
+</head>
+<body>
+
+<aside>
+    <section class="i-card">
+        <img src="LOGOFIN.png" alt="LOGO" class="logo">
+        <div class="inf"></div>
+    </section>
+
+    <nav class="nav">
+        <button onclick="goTo('BlibDash.html')">DASHBOARD</button>
+        <button onclick="goTo('Bbook.html')">BOOKS</button>
+        <button class="active">STUDENTS</button>
+        <button onclick="goTo('Brequests.html')">REQUESTS</button>
+        <button onclick="goTo('BBB.html')">BORROWED BOOKS</button>
+        <div class="log">
+            <button onclick="logout()">LOG OUT</button>
+        </div>
+    </nav>
+</aside>
+
+<main>
+    <h1>STUDENTS</h1>
+
+    <div class="top-bar">
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="stuSearch"
+                       placeholder="Search ID or student name..."
+                       autocomplete="off"
+                       oninput="renderStudents()">
+                <i class="fa fa-search"></i>
+            </div>
+        </div>
+        <div class="bottom-controls">
+            <button class="refresh-btn" onclick="loadStudents()">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            <div>
+                <select class="filter-select" id="stuCourseFilter" onchange="renderStudents()">
+                    <option value="all">All Courses</option>
+                    <option value="BSCS">BSCS</option>
+                    <option value="BSIT">BSIT</option>
+                    <option value="BLISS">BLISS</option>
+                </select>
+
+                <select class="filter-select" id="stuYearFilter" onchange="renderStudents()">
+                    <option value="all">All Years</option>
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                </select>
+
+                <select class="filter-select" id="stuSectionFilter" onchange="renderStudents()">
+                    <option value="all">All Sections</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                </select>
+
+                <select class="filter-select" id="stuStatusFilter" onchange="renderStudents()">
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="hold">Hold</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <p id="students_message"></p>
+
+    <section class="section">
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>Student ID</th>
+                    <th>Last Name</th>
+                    <th>First Name</th>
+                    <th>Middle Name</th>
+                    <th>Year &amp; Section</th>
+                    <th>Status</th>
+                    <th>PIN</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody id="student-table-body"></tbody>
+            </table>
+        </div>
+    </section>
+
+</main>
+
+<div class="section-header">
+    <button class="fab" onclick="openStudentModal()">+</button>
+</div>
+
+<!-- ADD STUDENT MODAL -->
+<div class="modal" id="student-modal">
+    <div class="modal-content">
+        <h3>Add Student</h3>
+        <p id="modal_regS_message" style="color:red;"></p>
+        <input type="text"     id="m_stu_id" placeholder="Student ID"    autocomplete="off"><br><br>
+        <input type="text"     id="m_lName"  placeholder="Last Name"     autocomplete="off"><br><br>
+        <input type="text"     id="m_fName"  placeholder="First Name"    autocomplete="off"><br><br>
+        <input type="text"     id="m_mName"  placeholder="Middle Name"   autocomplete="off"><br><br>
+        <select id="m_course" required style="color:#434346;">
+            <option value="" disabled selected hidden>-- Course --</option>
+            <option value="BSCS">BSCS</option>
+            <option value="BSIT">BSIT</option>
+            <option value="BLISS">BLISS</option>
+        </select><br><br>
+        <select id="m_yearNum" required style="color:#434346;">
+            <option value="" disabled selected hidden>-- Year --</option>
+            <option value="1">1st Year</option>
+            <option value="2">2nd Year</option>
+            <option value="3">3rd Year</option>
+            <option value="4">4th Year</option>
+        </select>
+        -
+        <select id="m_sectionLetter" required style="color:#434346;">
+            <option value="" disabled selected hidden>-- Section --</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+        </select><br><br>
+        <input type="password" id="m_pin" placeholder="PIN (6 digits)" maxlength="6" autocomplete="new-password"><br><br>
+        <div class="modal-actions">
+            <button class="submit-btn" onclick="registerStudent()">Add Member</button>
+            <button type="button" class="cancel-btn" onclick="closeStudentModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT STUDENT MODAL -->
+<div class="modal" id="edit-student-modal">
+    <div class="modal-content">
+        <h3>Edit Student</h3>
+        <p id="modal_editS_message" style="color:red;"></p>
+        <input type="hidden" id="edit_mongo_id">
+        <input type="text"     id="edit_lName"   placeholder="Last Name"   autocomplete="off"><br><br>
+        <input type="text"     id="edit_fName"   placeholder="First Name"  autocomplete="off"><br><br>
+        <input type="text"     id="edit_mName"   placeholder="Middle Name" autocomplete="off"><br><br>
+        <select id="edit_course" style="color:#434346;">
+            <option value="" disabled>-- Course --</option>
+            <option value="BSCS">BSCS</option>
+            <option value="BSIT">BSIT</option>
+            <option value="BLISS">BLISS</option>
+        </select><br><br>
+        <select id="edit_year" style="color:#434346;">
+            <option value="" disabled>-- Year --</option>
+            <option value="1">1st Year</option>
+            <option value="2">2nd Year</option>
+            <option value="3">3rd Year</option>
+            <option value="4">4th Year</option>
+        </select>
+        -
+        <select id="edit_section" style="color:#434346;">
+            <option value="" disabled>-- Section --</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+        </select><br><br>
+        <input type="password" id="edit_pin" placeholder="New PIN (leave blank to keep current)" maxlength="6" autocomplete="new-password"><br><br>
+        <div class="modal-actions">
+            <button class="submit-btn" onclick="saveEditStudent()">Save Changes</button>
+            <button type="button" class="cancel-btn" onclick="closeEditModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SERVER     = window.location.origin;
+    const LIB_BASE   = `${SERVER}/api/librarians`;
+    const token      = localStorage.getItem("token");
+    const role       = localStorage.getItem("role");
+
+    if (!token || role !== "librarian") {
+        localStorage.clear();
+        window.location.replace("/landingPage.html");
+    }
+
+    function goTo(page)  { window.location.href = page; }
+    function logout()    { localStorage.clear(); window.location.href = "/landingPage.html"; }
+    function jsonHeaders() {
+        return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+    }
+
+    let allStudents = [];
+
+    function openStudentModal()  { document.getElementById("student-modal").style.display = "flex"; }
+    function closeStudentModal() { document.getElementById("student-modal").style.display = "none"; }
+
+    function buildYearAndSection() {
+        const course  = document.getElementById("m_course").value;
+        const yearNum = document.getElementById("m_yearNum").value;
+        const section = document.getElementById("m_sectionLetter").value;
+        if (!course || !yearNum || !section) return null;
+        return `${course} ${yearNum}-${section}`;
+    }
+
+    async function registerStudent() {
+        const message        = document.getElementById("modal_regS_message");
+        const yearAndSection = buildYearAndSection();
+        if (!yearAndSection) { message.innerText = "Please select Course, Year, and Section."; return; }
+        const body = {
+            stu_id: document.getElementById("m_stu_id").value.trim(),
+            fName:  document.getElementById("m_fName").value.trim(),
+            mName:  document.getElementById("m_mName").value.trim(),
+            lName:  document.getElementById("m_lName").value.trim(),
+            yearAndSection,
+            pin:    document.getElementById("m_pin").value.trim(),
+        };
+        if (Object.values(body).some(v => !v)) { message.innerText = "Please fill in all fields."; return; }
+        if (!/^\d{1,6}$/.test(body.pin)) { message.innerText = "PIN must be up to 6 digits (numbers only)."; return; }
+        try {
+            const res  = await fetch(`${LIB_BASE}/students/register`, {
+                method: "POST", headers: jsonHeaders(), body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            message.innerText = data.message || (res.ok ? "Student registered." : "Failed.");
+            if (res.ok) {
+                ["m_stu_id","m_fName","m_mName","m_lName","m_pin"].forEach(id => document.getElementById(id).value = "");
+                closeStudentModal();
+                loadStudents();
+            }
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    async function loadStudents() {
+        const message = document.getElementById("students_message");
+        try {
+            const res  = await fetch(`${LIB_BASE}/students`, { headers: jsonHeaders() });
+            const data = await res.json();
+            allStudents = res.ok ? data : [];
+            renderStudents();
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    function renderStudents() {
+        const tbody   = document.getElementById("student-table-body");
+        const message = document.getElementById("students_message");
+        const search  = document.getElementById("stuSearch").value.toLowerCase();
+        const courseF = document.getElementById("stuCourseFilter").value;
+        const yearF   = document.getElementById("stuYearFilter").value;
+        const sectionF= document.getElementById("stuSectionFilter").value;
+        const statusF = document.getElementById("stuStatusFilter").value;
+        tbody.innerHTML = "";
+
+        let filtered = allStudents.filter(s => {
+            const fullName    = `${s.lName} ${s.fName} ${s.mName}`.toLowerCase();
+            const matchSearch = !search || (s.stu_id||"").toLowerCase().includes(search) || fullName.includes(search);
+            const yas         = s.yearAndSection || "";
+            const matchCourse  = courseF  === "all" || yas.startsWith(courseF);
+            const matchYear    = yearF    === "all" || yas.includes(` ${yearF}-`);
+            const matchSection = sectionF === "all" || yas.endsWith(`-${sectionF}`);
+            const matchStatus  = statusF  === "all" || s.status === statusF;
+            return matchSearch && matchCourse && matchYear && matchSection && matchStatus;
+        });
+
+        filtered.sort((a,b) => {
+            const c = (a.lName||"").localeCompare(b.lName||"");
+            return c !== 0 ? c : (a.fName||"").localeCompare(b.fName||"");
+        });
+
+        if (filtered.length === 0) { message.innerText = "No students found."; return; }
+        message.innerText = "";
+
+        filtered.forEach(stu => {
+            const tr     = document.createElement("tr");
+            const isHold = stu.status === "hold";
+            tr.innerHTML = `
+                <td>${stu.stu_id}</td>
+                <td>${stu.lName}</td>
+                <td>${stu.fName}</td>
+                <td>${stu.mName}</td>
+                <td>${stu.yearAndSection || "—"}</td>
+                <td><strong style="color:${isHold ? "red" : "green"}">${(stu.status||"").toUpperCase()}</strong></td>
+                <td>${stu.pin || "—"}</td>
+                <td class="action-buttons">
+                    <button class="btn-edit" onclick='openEditStudentModal(${JSON.stringify(stu)})'>
+                        <i class="fa-solid fa-pen"></i> Edit
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // ── Edit Modal ────────────────────────────────────────────────────────────
+    function openEditStudentModal(stu) {
+        document.getElementById("edit-student-modal").style.display = "flex";
+        document.getElementById("modal_editS_message").innerText = "";
+        document.getElementById("edit_mongo_id").value  = stu._id;
+        document.getElementById("edit_lName").value     = stu.lName   || "";
+        document.getElementById("edit_fName").value     = stu.fName   || "";
+        document.getElementById("edit_mName").value     = stu.mName   || "";
+        document.getElementById("edit_pin").value       = stu.pin     || "";
+        // Parse "BSCS 1-A"
+        const yas   = stu.yearAndSection || "";
+        const match = yas.match(/^(\w+)\s+(\d+)-([A-D])$/);
+        if (match) {
+            document.getElementById("edit_course").value   = match[1];
+            document.getElementById("edit_year").value     = match[2];
+            document.getElementById("edit_section").value  = match[3];
+        }
+    }
+
+    function closeEditModal() {
+        document.getElementById("edit-student-modal").style.display = "none";
+    }
+
+    async function saveEditStudent() {
+        const message = document.getElementById("modal_editS_message");
+        const id      = document.getElementById("edit_mongo_id").value;
+        const course  = document.getElementById("edit_course").value;
+        const yearNum = document.getElementById("edit_year").value;
+        const section = document.getElementById("edit_section").value;
+        if (!course || !yearNum || !section) { message.innerText = "Please select Course, Year, and Section."; return; }
+        const pin = document.getElementById("edit_pin").value.trim();
+        if (pin && (pin.length > 6 || !/^\d+$/.test(pin))) { message.innerText = "PIN must be up to 6 digits."; return; }
+        const body = {
+            lName:          document.getElementById("edit_lName").value.trim(),
+            fName:          document.getElementById("edit_fName").value.trim(),
+            mName:          document.getElementById("edit_mName").value.trim(),
+            yearAndSection: `${course} ${yearNum}-${section}`,
+            pin,
+        };
+        try {
+            const res  = await fetch(`${LIB_BASE}/students/${id}`, {
+                method: "PUT", headers: jsonHeaders(), body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            message.innerText = data.message || (res.ok ? "Student updated." : "Failed.");
+            if (res.ok) { closeEditModal(); loadStudents(); }
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    loadStudents();
+</script>
+
+</body>
+</html>

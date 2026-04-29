@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borrowing Requests - Grand University Library</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/AcssRequests.css">
+</head>
+
+<body>
+
+<aside>
+    <section class="i-card">
+        <img src="LOGOFIN.png" alt="LOGO" class="logo">
+        <div class="inf"></div>
+    </section>
+    <nav class="nav">
+        <button onclick="goTo('BlibDash.html')">DASHBOARD</button>
+        <button onclick="goTo('Bbook.html')">BOOKS</button>
+        <button onclick="goTo('Bstudents.html')">STUDENTS</button>
+        <button class="active">REQUESTS</button>
+        <button onclick="goTo('BBB.html')">BORROWED BOOKS</button>
+        <div class="log">
+            <button onclick="logout()">LOG OUT</button>
+        </div>
+    </nav>
+</aside>
+
+<main>
+    <h1>Pending Book Requests</h1>
+
+    <div class="top-bar">
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="reqSearch" placeholder="Search student, ID, or book..."
+                       autocomplete="off" oninput="renderRequests()">
+                <i class="fa fa-search"></i>
+            </div>
+        </div>
+        <div class="bottom-controls">
+            <button class="refresh-btn" onclick="loadRequests()">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <p id="req_message"></p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+            <tr>
+                <th>Student Name</th>
+                <th>Student ID</th>
+                <th>Year &amp; Section</th>
+                <th>Book Title</th>
+                <th>ISBN</th>
+                <th>Request Date</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody id="requests-list"></tbody>
+        </table>
+    </div>
+
+    <div class="empty-state" id="empty-state">
+        No pending requests at this time.
+    </div>
+
+</main>
+<script src="/librarian/script/request.js"></script>
+
+</body>
+</html>

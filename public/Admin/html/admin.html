@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/admin.css">
+</head>
+
+<body>
+
+<aside>
+  <section class="i-card">
+    <img src="LOGOFIN.png   " alt="LOGO" class="logo">
+    <div class="inf"></div>
+  </section>
+
+  <nav class="nav">
+    <button class="active">DASHBOARD</button>
+    <button onclick="goTo('adminBooks.html')">BOOKS</button>
+    <button onclick="goTo('membersPortal.html')">MEMBERS</button>
+    <button onclick="goTo('requests.html')">REQUESTS</button>
+    <button onclick="goTo('history.html')">REPORTS</button>
+    <button onclick="goTo('settings.html')">SETTINGS</button>
+  </nav>
+</aside>
+
+<main>
+
+<header>
+  <h1>Head Administrator</h1>
+</header>
+
+<!-- Flip ID Card -->
+<section class="id-card-container">
+  <div class="id-card-flip">
+
+    <!-- FRONT -->
+    <div class="card-face front">
+      <img src="LOGOFIN.png" alt="LOGO" class="lo">
+      <img src="ben.jpg" alt="Admin Profile" class="profile">
+      <h2>Bho-en Kho Barre</h2>
+      <p>Administrator</p>
+      <div class="details">
+        <h7><strong>Office:</strong> CCIT Library</h7>
+      </div>
+    </div>
+
+    <!-- BACK -->
+    <div class="card-face back">
+      <img src="seal.png" alt="Seal" class="pro">
+      <h3>Credentials</h3>
+      <p><strong>ID No:</strong> ADMIN-001</p>
+      <p><strong>Access Level:</strong> Admin</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- Stats — connected to backend -->
+<section class="dashboard-cards">
+  <div class="card">
+    <i class="fas fa-book"></i>
+    <h3>Total Books</h3>
+    <p id="stat-books">—</p>
+  </div>
+
+  <div class="card">
+    <i class="fas fa-user-graduate"></i>
+    <h3>Students</h3>
+    <p id="stat-students">—</p>
+  </div>
+
+  <div class="card">
+    <i class="fas fa-exchange-alt"></i>
+    <h3>Borrowed</h3>
+    <p id="stat-borrowed">—</p>
+  </div>
+
+  <div class="card">
+    <i class="fas fa-envelope"></i>
+    <h3>Pending Requests</h3>
+    <p id="stat-requests">—</p>
+  </div>
+</section>
+
+</main>
+
+<script>
+    const SERVER = window.location.origin;
+
+    //const ADMIN_BASE = "http://localhost:3000/api/admin";
+    //const BOOK_BASE  = "http://localhost:3000/api/book";
+    const ADMIN_BASE = `${SERVER}/api/admin`;
+    const BOOK_BASE  = `${SERVER}/api/book`;
+    //const ADMIN_BASE = "http://10.154.86.63:3000/api/admin";
+    //const BOOK_BASE  = "http://10.154.86.63:3000/api/book";
+
+    function goTo(page) { window.location.href = page; }
+
+    async function loadStats() {
+        try {
+            // Total books
+            const bRes  = await fetch(`${BOOK_BASE}/getBooks`);
+            const books = await bRes.json();
+            if (bRes.ok) document.getElementById("stat-books").innerText = books.length;
+
+            // Students
+            const sRes  = await fetch(`${ADMIN_BASE}/students`);
+            const stus  = await sRes.json();
+            if (sRes.ok) document.getElementById("stat-students").innerText = stus.length;
+
+            // Transactions — pending + borrowed
+            const tRes  = await fetch(`${ADMIN_BASE}/transactions`);
+            const txs   = await tRes.json();
+            if (tRes.ok) {
+                document.getElementById("stat-requests").innerText =
+                    txs.filter(t => t.status === "Pending").length;
+                document.getElementById("stat-borrowed").innerText =
+                    txs.filter(t => t.status === "PickedUp").length;
+            }
+        } catch (err) { console.error("Stats error:", err); }
+    }
+
+    loadStats();
+</script>
+
+</body>
+</html>

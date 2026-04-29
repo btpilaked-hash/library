@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Books Management - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/adminBooks.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+<aside>
+    <section class="i-card">
+        <img src="LOGOFIN.png" alt="LOGO" class="logo">
+        <div class="inf"></div>
+    </section>
+    <nav class="nav">
+        <button onclick="goTo('admin.html')">DASHBOARD</button>
+        <button class="active">BOOKS</button>
+        <button onclick="goTo('membersPortal.html')">MEMBERS</button>
+        <button onclick="goTo('requests.html')">REQUESTS</button>
+        <button onclick="goTo('history.html')">REPORTS</button>
+        <button onclick="goTo('settings.html')">SETTINGS</button>
+    </nav>
+</aside>
+
+<main>
+    <h1>Library Archive: Book Collection</h1>
+
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="searchInput"
+                   placeholder="Search title, author, ISBN, genre, publisher..."
+                   autocomplete="off" oninput="filterBooks()">
+            <i class="fa fa-search"></i>
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <select id="catFilter" onchange="filterBooks()">
+            <option value="">All Categories</option>
+            <option value="Academic">Academic</option>
+            <option value="Non-Academic">Non-Academic</option>
+        </select>
+        <select id="sortFilter" onchange="filterBooks()">
+            <option value="">Sort By</option>
+            <option value="title_asc">Title A→Z</option>
+            <option value="title_desc">Title Z→A</option>
+            <option value="author_asc">Author A→Z</option>
+            <option value="avail_desc">Most Available</option>
+            <option value="avail_asc">Least Available</option>
+        </select>
+    </div>
+
+    <p id="tableMessage"></p>
+    <div class="table-container">
+        <table>
+            <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>ISBN / ID</th>
+                <th>Category</th>
+                <th>Genre</th>
+                <th>Publisher</th>
+                <th>Year</th>
+                <th>Total</th>
+                <th>Available</th>
+                <th>Date Added</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody id="booksTableBody"></tbody>
+        </table>
+    </div>
+</main>
+
+<div class="fab" onclick="openModal(null)">+</div>
+
+<!-- ══ MODAL ═════════════════════════════════════════ -->
+<div class="modal" id="modal">
+    <div class="modal-content">
+        <h3 id="modalTitle">Official Accession Record</h3>
+        <p id="modalMessage" class="modal-message"></p>
+        <input type="hidden" id="editBookMongoId">
+
+        <!-- 1. Category -->
+        <p class="form-section-label">Category</p>
+        <select id="f_category" onchange="populateGenreSelect(); toggleIsbnRequired()">
+            <option value="">-- Select Category --</option>
+            <option value="Academic">Academic</option>
+            <option value="Non-Academic">Non-Academic</option>
+        </select>
+
+        <!-- 2. ISBN with lookup + scan -->
+        <p class="form-section-label">ISBN <span id="isbnRequired"></span></p>
+        <div class="isbn-row">
+            <input type="text" id="f_isbn" placeholder="Enter or scan ISBN"
+                   autocomplete="off"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();lookupISBN();}">
+            <button type="button" class="secondary-btn" onclick="lookupISBN()">
+                <i class="fa fa-search"></i> Lookup
+            </button>
+            <button type="button" class="secondary-btn" id="scanBtn" onclick="toggleScanner()">
+                <i class="fa fa-camera"></i> Scan
+            </button>
+        </div>
+        <div id="scanner-container"></div>
+        <p id="isbn_status"></p>
+
+        <!-- 3. Cover -->
+        <div class="image-preview" id="preview">Cover</div>
+        <input type="file" id="cover" accept="image/*" class="file-input">
+
+        <!-- 4. Fields -->
+        <div class="form-grid">
+            <input type="text"   id="f_title"    placeholder="Title"    required>
+            <input type="text"   id="f_author"   placeholder="Author"   required>
+            <input type="text"   id="f_publisher" placeholder="Publisher">
+            <input type="number" id="f_total"    placeholder="Total Copies">
+            <input type="number" id="f_available" placeholder="Available Copies">
+            <input type="date"   id="f_year">
+            <select id="f_genre"><option value="">-- Select Genre --</option></select>
+        </div>
+
+        <div class="modal-actions">
+            <button class="add-btn" onclick="submitBook()">Save Record</button>
+            <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SERVER = window.location.origin;
+
+    const BOOK_BASE  = `${SERVER}/api/book`;
+    const ADMIN_BASE = `${SERVER}/api/admin`;
+    //const BOOK_BASE  = "http://192.168.1.39:3000/api/book";
+    //const ADMIN_BASE = "http://192.168.1.39:3000/api/admin";
+    //const BOOK_BASE  = "http://10.154.86.63:3000/api/book";
+    //const ADMIN_BASE = "http://10.154.86.63:3000/api/admin";
+
+    let allBooks = [];
+
+    // Instant navigation — no delay
+    function goTo(page) { window.location.href = page; }
+
+    // ══ Genre helpers ══════════════════════════════════
+    const ACADEMIC_GENRES     = ["Theses","Journal","Research Book","Text Book"];
+    const NON_ACADEMIC_GENRES = ["Fiction","Mystery","Horror","Romance","Adventure","Historical"];
+
+    function populateGenreSelect() {
+        const cat = document.getElementById("f_category").value;
+        const sel = document.getElementById("f_genre");
+        sel.innerHTML = '<option value="">-- Select Genre --</option>';
+        const genres = cat === "Academic" ? ACADEMIC_GENRES
+            : cat === "Non-Academic"      ? NON_ACADEMIC_GENRES : [];
+        genres.forEach(g => {
+            const opt = document.createElement("option");
+            opt.value = g; opt.textContent = g; sel.appendChild(opt);
+        });
+    }
+
+    function toggleIsbnRequired() {
+        const cat = document.getElementById("f_category").value;
+        document.getElementById("isbnRequired").innerText =
+            cat === "Non-Academic" ? "* required" : "(optional for Academic)";
+    }
+
+    // ══ Modal ══════════════════════════════════════════
+    function openModal(book) {
+        stopScanner();
+        document.getElementById("modal").style.display = "flex";
+        document.getElementById("modalMessage").innerText = "";
+        document.getElementById("isbn_status").innerText  = "";
+        document.getElementById("isbn_status").className  = "";
+
+        if (book) {
+            document.getElementById("modalTitle").innerText     = "Edit Book Record";
+            document.getElementById("editBookMongoId").value    = book._id;
+            document.getElementById("f_isbn").value             = book.isbn     || "";
+            document.getElementById("f_title").value            = book.title    || "";
+            document.getElementById("f_author").value           = book.author   || "";
+            document.getElementById("f_publisher").value        = book.publisher|| "";
+            document.getElementById("f_total").value            = book.total_copies;
+            document.getElementById("f_available").value        = book.available_copies;
+            document.getElementById("f_year").value             = book.publish_year
+                ? new Date(book.publish_year).toISOString().split("T")[0] : "";
+            document.getElementById("f_category").value         = book.category || "";
+            populateGenreSelect(); toggleIsbnRequired();
+            document.getElementById("f_genre").value            = book.genre    || "";
+            document.getElementById("preview").innerHTML        = book.image
+                ? `<img src="http://localhost:3000${book.image}">` : "Cover";
+        } else {
+            document.getElementById("modalTitle").innerText     = "Official Accession Record";
+            document.getElementById("editBookMongoId").value    = "";
+            ["f_isbn","f_title","f_author","f_publisher","f_total","f_available","f_year"]
+                .forEach(id => document.getElementById(id).value = "");
+            document.getElementById("f_category").value         = "";
+            document.getElementById("f_genre").value            = "";
+            document.getElementById("isbnRequired").innerText   = "";
+            document.getElementById("cover").value              = "";
+            document.getElementById("preview").innerHTML        = "Cover";
+            populateGenreSelect();
+        }
+    }
+
+    function closeModal() { stopScanner(); document.getElementById("modal").style.display = "none"; }
+    window.onclick = e => { if (e.target.id === "modal") closeModal(); };
+
+    document.getElementById("cover").addEventListener("change", function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = evt => {
+                document.getElementById("preview").innerHTML = `<img src="${evt.target.result}">`;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // ══ ISBN Lookup ════════════════════════════════════
+    function setIsbnStatus(msg, cls) {
+        const el = document.getElementById("isbn_status");
+        el.className = cls; el.innerText = msg;
+    }
+
+    function autofillBook(data, source) {
+        const set = (id, val) => { if (val) document.getElementById(id).value = val; };
+        set("f_title", data.title); set("f_author", data.author); set("f_publisher", data.publisher);
+        if (data.publish_year) {
+            const raw = String(data.publish_year);
+            document.getElementById("f_year").value = /^\d{4}$/.test(raw) ? raw+"-01-01" : raw.slice(0,10);
+        }
+        if (source === "db") {
+            set("f_total", String(data.total_copies)); set("f_available", String(data.available_copies));
+            if (data.category) {
+                document.getElementById("f_category").value = data.category;
+                populateGenreSelect(); toggleIsbnRequired();
+            }
+            if (data.genre) document.getElementById("f_genre").value = data.genre;
+        }
+    }
+
+    async function lookupISBN() {
+        const isbn = document.getElementById("f_isbn").value.trim();
+        if (!isbn) { setIsbnStatus("Please enter an ISBN first.", "error"); return; }
+        setIsbnStatus("🔍 Checking database…", "loading");
+        try {
+            const res = await fetch(`${BOOK_BASE}/getByISBN/${encodeURIComponent(isbn)}`);
+            if (res.ok) { autofillBook(await res.json(), "db"); setIsbnStatus("✅ Found in library — fields autofilled.", "found"); return; }
+        } catch (_) {}
+        setIsbnStatus("Not in DB — searching Google Books…", "loading");
+        try {
+            const gRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+            const gData = await gRes.json();
+            if (gData.totalItems > 0) {
+                const info = gData.items[0].volumeInfo;
+                autofillBook({ title: info.title, author: (info.authors||[]).join(", "),
+                    publisher: info.publisher, publish_year: info.publishedDate }, "google");
+                setIsbnStatus("✅ Found on Google Books — fields autofilled.", "found"); return;
+            }
+        } catch (_) {}
+        setIsbnStatus("Trying Open Library…", "loading");
+        try {
+            const oRes  = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+            const oData = await oRes.json();
+            const key   = `ISBN:${isbn}`;
+            if (oData[key]) {
+                const b = oData[key];
+                autofillBook({ title: b.title, author: (b.authors||[]).map(a=>a.name).join(", "),
+                    publisher: (b.publishers||[]).map(p=>p.name).join(", "), publish_year: b.publish_date }, "openlibrary");
+                setIsbnStatus("✅ Found on Open Library — fields autofilled.", "found"); return;
+            }
+        } catch (_) {}
+        setIsbnStatus("⚠️ Not found. Please enter details manually.", "notfound");
+    }
+
+    // ══ Camera scanner — mobile + desktop ══════════════
+    let _html5QrCode = null, _scannerRunning = false;
+
+    async function toggleScanner() {
+        if (_scannerRunning) { await stopScanner(); return; }
+        document.getElementById("scanBtn").innerHTML = '<i class="fa fa-stop"></i> Stop';
+        _scannerRunning = true;
+        setIsbnStatus("Starting camera…", "loading");
+        document.getElementById("scanner-container").innerHTML = "";
+        _html5QrCode = new Html5Qrcode("scanner-container");
+        try {
+            const devices = await Html5Qrcode.getCameras();
+            if (!devices || devices.length === 0) { setIsbnStatus("No camera found.", "error"); await stopScanner(); return; }
+            const preferred = devices.find(d =>
+                d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("rear") ||
+                d.label.toLowerCase().includes("environment")
+            ) || devices[0];
+            setIsbnStatus("Point camera at the barcode…", "loading");
+            await _html5QrCode.start(preferred.id, { fps: 10, qrbox: { width: 260, height: 100 } },
+                async (decoded) => {
+                    const clean = decoded.trim();
+                    if (/^\d{9,13}[\dX]?$/.test(clean)) {
+                        document.getElementById("f_isbn").value = clean;
+                        await stopScanner(); await lookupISBN();
+                    }
+                }, () => {}
+            );
+        } catch (err) { setIsbnStatus("Camera error: " + err, "error"); await stopScanner(); }
+    }
+
+    async function stopScanner() {
+        document.getElementById("scanBtn").innerHTML = '<i class="fa fa-camera"></i> Scan';
+        _scannerRunning = false;
+        if (_html5QrCode) {
+            try { const s = _html5QrCode.getState(); if (s === 2) await _html5QrCode.stop(); _html5QrCode.clear(); } catch (_) {}
+            _html5QrCode = null;
+        }
+        document.getElementById("scanner-container").innerHTML = "";
+    }
+
+    // ══ Submit book ════════════════════════════════════
+    async function submitBook() {
+        const msg     = document.getElementById("modalMessage");
+        const mongoId = document.getElementById("editBookMongoId").value;
+        const isEdit  = !!mongoId;
+        const title            = document.getElementById("f_title").value.trim();
+        const author           = document.getElementById("f_author").value.trim();
+        const isbn             = document.getElementById("f_isbn").value.trim();
+        const total_copies     = document.getElementById("f_total").value.trim();
+        const available_copies = document.getElementById("f_available").value.trim();
+        const publisher        = document.getElementById("f_publisher").value.trim();
+        const publish_year     = document.getElementById("f_year").value.trim();
+        const category         = document.getElementById("f_category").value.trim();
+        const genre            = document.getElementById("f_genre").value.trim();
+        const imageFile        = document.getElementById("cover").files[0];
+
+        if (!category) { msg.innerText = "Please select a category."; return; }
+        if (category === "Non-Academic" && !isbn) { msg.innerText = "ISBN is required for Non-Academic books."; return; }
+        if (!title || !author || !total_copies || !available_copies || !publisher || !publish_year || !genre) {
+            msg.innerText = "Please fill in all required fields."; return;
+        }
+        if (!isEdit && !imageFile) { msg.innerText = "Please upload a cover image."; return; }
+
+        msg.innerText = isEdit ? "Saving changes..." : "Adding book...";
+
+        if (isEdit) {
+            const body = { title, author, isbn, total_copies: Number(total_copies),
+                available_copies: Number(available_copies), publisher, publish_year, category, genre,
+                edited_by_id: "admin", edited_by_name: "Admin" };
+            try {
+                const res  = await fetch(`${BOOK_BASE}/updateBook/admin/${mongoId}`, {
+                    method: "PUT", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                msg.innerText = data.message;
+                if (res.ok) { closeModal(); loadBooks(); }
+            } catch (err) { msg.innerText = "Cannot connect to server."; }
+        } else {
+            const formData = new FormData();
+            if (isbn) formData.append("isbn", isbn);
+            formData.append("title", title); formData.append("author", author);
+            formData.append("total_copies", total_copies); formData.append("available_copies", available_copies);
+            formData.append("publisher", publisher); formData.append("publish_year", publish_year);
+            formData.append("category", category); formData.append("genre", genre);
+            formData.append("image", imageFile);
+            try {
+                const res  = await fetch(`${BOOK_BASE}/addBook`, { method: "POST", body: formData });
+                const data = await res.json();
+                msg.innerText = data.message;
+                if (res.ok) { closeModal(); loadBooks(); }
+            } catch (err) { msg.innerText = "Cannot connect to server."; }
+        }
+    }
+
+    // ══ Delete book ════════════════════════════════════
+    async function deleteBook(id) {
+        if (!confirm("Delete this book? This cannot be undone.")) return;
+        const msg = document.getElementById("tableMessage");
+        try {
+            const res  = await fetch(`${BOOK_BASE}/deleteBook/${id}`, { method: "DELETE" });
+            const data = await res.json();
+            msg.innerText = data.message;
+            if (res.ok) loadBooks();
+        } catch (err) { msg.innerText = "Cannot connect to server."; }
+    }
+
+    // ══ Load + filter + sort ═══════════════════════════
+    async function loadBooks() {
+        const msg = document.getElementById("tableMessage");
+        msg.innerText = "";
+        try {
+            const res  = await fetch(`${ADMIN_BASE}/books`);
+            const data = await res.json();
+            allBooks   = res.ok ? data : [];
+            filterBooks();
+        } catch (err) { msg.innerText = "Cannot connect to server."; }
+    }
+
+    function filterBooks() {
+        const q     = document.getElementById("searchInput").value.toLowerCase();
+        const catF  = document.getElementById("catFilter").value;
+        const sort  = document.getElementById("sortFilter").value;
+        const tbody = document.getElementById("booksTableBody");
+        const msg   = document.getElementById("tableMessage");
+        tbody.innerHTML = "";
+
+        let filtered = allBooks.filter(b => {
+            const matchQ = !q ||
+                (b.title     ||"").toLowerCase().includes(q) || (b.author    ||"").toLowerCase().includes(q) ||
+                (b.isbn      ||"").toLowerCase().includes(q) || (b.genre     ||"").toLowerCase().includes(q) ||
+                (b.publisher ||"").toLowerCase().includes(q) || (b.category  ||"").toLowerCase().includes(q);
+            const matchCat = !catF || b.category === catF;
+            return matchQ && matchCat;
+        });
+
+        if (sort === "title_asc")  filtered.sort((a,b)=>a.title.localeCompare(b.title));
+        if (sort === "title_desc") filtered.sort((a,b)=>b.title.localeCompare(a.title));
+        if (sort === "author_asc") filtered.sort((a,b)=>a.author.localeCompare(b.author));
+        if (sort === "avail_desc") filtered.sort((a,b)=>b.available_copies-a.available_copies);
+        if (sort === "avail_asc")  filtered.sort((a,b)=>a.available_copies-b.available_copies);
+
+        if (filtered.length === 0) { msg.innerText = "No books found."; return; }
+        msg.innerText = "";
+
+        filtered.forEach(book => {
+            const tr    = document.createElement("tr");
+            const year  = book.publish_year ? new Date(book.publish_year).getFullYear() : "—";
+            const added = book.createdAt    ? new Date(book.createdAt).toLocaleDateString() : "—";
+            tr.innerHTML = `
+                <td>${book.title}</td>
+                <td>${book.author}</td>
+                <td>${book.isbn || "—"}</td>
+                <td>${book.category || "—"}</td>
+                <td>${book.genre || "—"}</td>
+                <td>${book.publisher}</td>
+                <td>${year}</td>
+                <td>${book.total_copies}</td>
+                <td>${book.available_copies}</td>
+                <td>${added}</td>
+                <td>
+                    <div class="actions">
+                        <button class="btn-accept" onclick='openModal(${JSON.stringify(book).replace(/'/g,"&#39;")})'>
+                            <i class="fa fa-pen"></i> Edit
+                        </button>
+                        <button class="btn-decline" onclick="deleteBook('${book._id}')">
+                            <i class="fa fa-times"></i> Remove
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    loadBooks();
+</script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Librarian Members - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/members.css">
+</head>
+<body>
+
+<aside>
+    <section class="i-card">
+        <img src="LOGOFIN.png" alt="LOGO" class="logo">
+        <div class="inf"></div>
+    </section>
+    <nav class="nav">
+        <button onclick="goTo('admin.html')">DASHBOARD</button>
+        <button onclick="goTo('adminBooks.html')">BOOKS</button>
+        <button class="active">MEMBERS</button>
+        <button onclick="goTo('requests.html')">REQUESTS</button>
+        <button onclick="goTo('history.html')">REPORTS</button>
+        <button onclick="goTo('settings.html')">SETTINGS</button>
+    </nav>
+</aside>
+
+<main>
+    <h1>LIBRARIANS</h1>
+
+    <div class="top-bar">
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="libSearch"
+                       placeholder="Search ID, name, contact, email..."
+                       autocomplete="off" oninput="renderLibrarians()">
+                <i class="fa fa-search"></i>
+            </div>
+        </div>
+        <div class="bottom-controls">
+            <!-- Fixed: refresh now calls loadLibrarians() -->
+            <button class="refresh-btn" onclick="loadLibrarians()">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            <!-- Fixed: id was txStatusFilter but JS read libStatusFilter — now both match -->
+            <select class="filter-select" id="libStatusFilter" onchange="renderLibrarians()">
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="hold">Hold</option>
+            </select>
+        </div>
+    </div>
+
+    <p id="librarians_message"></p>
+
+    <section class="section">
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>Librarian ID</th>
+                    <th>Last Name</th>
+                    <th>First Name</th>
+                    <th>Middle Name</th>
+                    <th>Contact</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>PIN</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody id="librarian-table-body"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<div class="section-header">
+    <button class="fab" onclick="openLibrarianModal()">+</button>
+</div>
+
+<!-- LIBRARIAN MODAL -->
+<div class="modal" id="librarian-modal">
+    <div class="modal-content">
+        <h3>Add Librarian</h3>
+        <p id="modal_regL_message" style="color:red;"></p>
+        <div class="image-preview" id="preview">Picture</div>
+        <input type="file" id="pic" name="picture" accept="image/*"><br><br>
+        <input type="text"     id="m_lib_id"    placeholder="Librarian ID"    autocomplete="off"><br><br>
+        <input type="text"     id="m_lib_lName" placeholder="Last Name"       autocomplete="off"><br><br>
+        <input type="text"     id="m_lib_fName" placeholder="First Name"      autocomplete="off"><br><br>
+        <input type="text"     id="m_lib_mName" placeholder="Middle Name"     autocomplete="off"><br><br>
+        <input type="text"     id="m_cNumber"   placeholder="Contact Number"  autocomplete="off"><br><br>
+        <input type="email"    id="m_unp_email" placeholder="Email"           autocomplete="off"><br><br>
+        <input type="password" id="m_libPin"    placeholder="PIN (6 digits)" maxlength="6" autocomplete="new-password"><br><br>
+        <div class="modal-actions">
+            <button class="submit-btn" onclick="registerLibrarian()">Add Member</button>
+            <button type="button" class="cancel-btn" onclick="closeLibrarianModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SERVER = window.location.origin;
+
+    const ADMIN_BASE = `${SERVER}/api/admin`;
+    const LIB_BASE   = `${SERVER}/api/librarians`;
+
+    // Instant navigation — no delay
+    function goTo(page) { window.location.href = page; }
+    function jsonHeaders() { return {"Content-Type":"application/json"}; }
+
+    let allLibrarians = [];
+
+    function openLibrarianModal()  { document.getElementById("librarian-modal").style.display = "flex"; }
+    function closeLibrarianModal() { document.getElementById("librarian-modal").style.display = "none"; }
+
+    document.getElementById("pic").addEventListener("change", function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                document.getElementById("preview").innerHTML = "<img src='" + evt.target.result + "'>";
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    async function registerLibrarian() {
+        const message = document.getElementById("modal_regL_message");
+        const pin = document.getElementById("m_libPin").value.trim();
+        const fields = {
+            lib_id:    document.getElementById("m_lib_id").value.trim(),
+            fName:     document.getElementById("m_lib_fName").value.trim(),
+            mName:     document.getElementById("m_lib_mName").value.trim(),
+            lName:     document.getElementById("m_lib_lName").value.trim(),
+            cNumber:   document.getElementById("m_cNumber").value.trim(),
+            unp_email: document.getElementById("m_unp_email").value.trim(),
+            pin,
+        };
+        if (Object.values(fields).some(v => !v)) { message.innerText = "Please fill in all fields."; return; }
+        if (!/^\d{1,6}$/.test(pin)) { message.innerText = "PIN must be up to 6 digits (numbers only)."; return; }
+
+        const formData = new FormData();
+        Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
+
+        const picFile = document.getElementById("pic").files[0];
+        if (picFile) formData.append("picture", picFile);
+
+        try {
+            const res  = await fetch(`${LIB_BASE}/register`, {
+                method: "POST",
+                body: formData,
+            });
+            const data = await res.json();
+            message.innerText = data.message || (res.ok ? "Librarian registered." : "Failed.");
+            if (res.ok) {
+                ["m_lib_id","m_lib_fName","m_lib_mName","m_lib_lName","m_cNumber","m_unp_email","m_libPin"]
+                    .forEach(id => document.getElementById(id).value = "");
+                document.getElementById("preview").innerHTML = "Picture";
+                document.getElementById("pic").value = "";
+                closeLibrarianModal();
+                loadLibrarians();
+            }
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    async function loadLibrarians() {
+        const message = document.getElementById("librarians_message");
+        try {
+            const res  = await fetch(`${ADMIN_BASE}/librarians`);
+            const data = await res.json();
+            allLibrarians = res.ok ? data : [];
+            renderLibrarians();
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    function renderLibrarians() {
+        const tbody   = document.getElementById("librarian-table-body");
+        const message = document.getElementById("librarians_message");
+        const search  = document.getElementById("libSearch").value.toLowerCase();
+        // Fixed: reads libStatusFilter (matching the HTML above)
+        const statusF = document.getElementById("libStatusFilter").value;
+        tbody.innerHTML = "";
+
+        let filtered = allLibrarians.filter(l => {
+            const fullName    = `${l.lName} ${l.fName} ${l.mName}`.toLowerCase();
+            const matchSearch = !search ||
+                (l.lib_id    ||"").toLowerCase().includes(search) || fullName.includes(search) ||
+                (l.cNumber   ||"").toLowerCase().includes(search) || (l.unp_email||"").toLowerCase().includes(search);
+            const matchStatus = statusF === "all" || l.status === statusF;
+            return matchSearch && matchStatus;
+        });
+
+        if (filtered.length === 0) { message.innerText = "No librarians found."; return; }
+        message.innerText = "";
+
+        filtered.forEach(lib => {
+            const tr     = document.createElement("tr");
+            const isHold = lib.status === "hold";
+            tr.innerHTML = `
+                <td>${lib.lib_id}</td>
+                <td>${lib.lName}</td>
+                <td>${lib.fName}</td>
+                <td>${lib.mName}</td>
+                <td>${lib.cNumber}</td>
+                <td>${lib.unp_email}</td>
+                <td><strong style="color:${isHold?"red":"green"}">${lib.status.toUpperCase()}</strong></td>
+                <td>${lib.pin || "—"}</td>
+                <td class="action-buttons">
+                    <button class="btn-edit"  onclick='openEditLibModal(${JSON.stringify(lib)})'>
+                    <i class="fa-solid fa-pen"></i> Edit</button>${isHold
+                ? `<button class="btn-unhold" onclick="setStatus('${lib._id}','active')">
+                    <i class="fa-solid fa-lock-open"></i> Unhold</button>`
+                : `<button class="btn-hold" onclick="setStatus('${lib._id}','hold')">
+                    <i class="fa-solid fa-lock"></i> Hold</button>`}
+                    <button class="btn-delete" onclick="deleteLibrarian('${lib._id}')"<i class="fa-solid fa-trash"></i> Delete</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function setStatus(id, status) {
+        const action  = status === "hold" ? "put this account on hold" : "unhold this account";
+        if (!confirm(`Are you sure you want to ${action}?`)) return;
+        const message = document.getElementById("librarians_message");
+        try {
+            const res  = await fetch(`${ADMIN_BASE}/librarians/${id}/status`, {
+                method: "PUT", headers: jsonHeaders(), body: JSON.stringify({ status })
+            });
+            const data = await res.json();
+            message.innerText = data.message;
+            if (res.ok) loadLibrarians();
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    async function deleteLibrarian(id) {
+        if (!confirm("Permanently delete this librarian? This cannot be undone.")) return;
+        const message = document.getElementById("librarians_message");
+        try {
+            const res  = await fetch(`${ADMIN_BASE}/librarians/${id}`, { method: "DELETE" });
+            const data = await res.json();
+            message.innerText = data.message;
+            if (res.ok) loadLibrarians();
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    loadLibrarians();
+</script>
+
+
+<!-- EDIT LIBRARIAN MODAL -->
+<div class="modal" id="edit-lib-modal">
+    <div class="modal-content">
+        <h3>Edit Librarian</h3>
+        <p id="modal_editL_message" style="color:red;"></p>
+        <input type="hidden"   id="edit_lib_mongo_id">
+        <input type="text"     id="edit_lib_id"    placeholder="Librarian ID"   autocomplete="off"><br><br>
+        <input type="text"     id="edit_lib_lName" placeholder="Last Name"      autocomplete="off"><br><br>
+        <input type="text"     id="edit_lib_fName" placeholder="First Name"     autocomplete="off"><br><br>
+        <input type="text"     id="edit_lib_mName" placeholder="Middle Name"    autocomplete="off"><br><br>
+        <input type="text"     id="edit_cNumber"   placeholder="Contact Number" autocomplete="off"><br><br>
+        <input type="email"    id="edit_unp_email" placeholder="Email"          autocomplete="off"><br><br>
+        <input type="password" id="edit_lib_pin"   placeholder="PIN (6 digits)" maxlength="6" autocomplete="new-password"><br><br>
+        <div class="modal-actions">
+            <button class="submit-btn" onclick="saveEditLib()">Save</button>
+            <button type="button" class="cancel-btn" onclick="closeEditLibModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openEditLibModal(lib) {
+        document.getElementById("edit-lib-modal").style.display = "flex";
+        document.getElementById("modal_editL_message").innerText = "";
+        document.getElementById("edit_lib_mongo_id").value = lib._id;
+        document.getElementById("edit_lib_id").value       = lib.lib_id    || "";
+        document.getElementById("edit_lib_lName").value    = lib.lName     || "";
+        document.getElementById("edit_lib_fName").value    = lib.fName     || "";
+        document.getElementById("edit_lib_mName").value    = lib.mName     || "";
+        document.getElementById("edit_cNumber").value      = lib.cNumber   || "";
+        document.getElementById("edit_unp_email").value    = lib.unp_email || "";
+        document.getElementById("edit_lib_pin").value      = lib.pin       || "";
+    }
+    function closeEditLibModal() {
+        document.getElementById("edit-lib-modal").style.display = "none";
+    }
+    async function saveEditLib() {
+        const message = document.getElementById("modal_editL_message");
+        const id      = document.getElementById("edit_lib_mongo_id").value;
+        const pin     = document.getElementById("edit_lib_pin").value.trim();
+        if (pin && (pin.length > 6 || !/^\d+$/.test(pin))) {
+            message.innerText = "PIN must be up to 6 digits (numbers only)."; return;
+        }
+        const body = {
+            lib_id:    document.getElementById("edit_lib_id").value.trim(),
+            lName:     document.getElementById("edit_lib_lName").value.trim(),
+            fName:     document.getElementById("edit_lib_fName").value.trim(),
+            mName:     document.getElementById("edit_lib_mName").value.trim(),
+            cNumber:   document.getElementById("edit_cNumber").value.trim(),
+            unp_email: document.getElementById("edit_unp_email").value.trim(),
+            pin,
+        };
+        try {
+            const res  = await fetch(`${ADMIN_BASE}/librarians/${id}`, {
+                method: "PUT", headers: jsonHeaders(), body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            message.innerText = data.message || (res.ok ? "Librarian updated." : "Failed.");
+            if (res.ok) { closeEditLibModal(); loadLibrarians(); }
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
+</head>
+<body>
+<h2>Student Dashboard</h2>
+<button onclick="logout()">Logout</button>
+<hr>
+
+<!-- Profile -->
+<h3>My Profile</h3>
+<p><strong>Student ID:</strong> <span id="stu_id">—</span></p>
+<p><strong>Name:</strong> <span id="name">—</span></p>
+<p><strong>Year and Section:</strong> <span id="yearAndSection">—</span></p>
+<p><strong>Status:</strong> <span id="status">—</span></p>
+<hr>
+
+<!-- Available Books -->
+<h3>Available Books</h3>
+<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
+    <input type="text" id="bookSearch" placeholder="Search title, author, genre, ISBN..."
+           style="padding:4px;width:240px;" oninput="debounceSearch()"/>
+    <select id="catFilter" onchange="onCategoryChange(); loadBooks();">
+        <option value="">All Categories</option>
+        <option value="Academic">Academic</option>
+        <option value="Non-Academic">Non-Academic</option>
+    </select>
+    <select id="genreFilter" onchange="loadBooks()">
+        <option value="">All Genres</option>
+    </select>
+    <select id="sortBooks" onchange="loadBooks()">
+        <option value="">Sort By</option>
+        <option value="title_asc">Title A→Z</option>
+        <option value="title_desc">Title Z→A</option>
+        <option value="author_asc">Author A→Z</option>
+        <option value="avail_desc">Most Available</option>
+    </select>
+    <button onclick="clearFilters()">Clear</button>
+    <button onclick="loadBooks()">Refresh</button>
+</div>
+<p id="books_message"></p>
+<table border="1">
+    <thead><tr>
+        <th>Title</th><th>Author</th><th>Category</th><th>Genre</th>
+        <th>Publisher</th><th>Available</th><th>Favorite</th><th>Request</th>
+    </tr></thead>
+    <tbody id="booksList"></tbody>
+</table>
+<hr>
+
+<!-- Recommended For You -->
+<div id="recSection" style="display:none;">
+    <h3>Recommended For You</h3>
+    <button onclick="loadRecommendations()">Refresh</button>
+    <table border="1">
+        <thead><tr>
+            <th>Title</th><th>Author</th><th>Category</th><th>Genre</th><th>Request</th>
+        </tr></thead>
+        <tbody id="recList"></tbody>
+    </table>
+    <hr>
+</div>
+
+<!-- Trending Books -->
+<div id="trendingSection" style="display:none;">
+    <h3>Trending Books</h3>
+    <button onclick="loadTrending()">Refresh</button>
+    <table border="1">
+        <thead><tr>
+            <th>Title</th><th>Author</th><th>Category</th><th>Genre</th><th>Request</th>
+        </tr></thead>
+        <tbody id="trendingList"></tbody>
+    </table>
+    <hr>
+</div>
+
+<!-- My Favorites -->
+<h3>My Favorites</h3>
+<button onclick="loadFavorites()">Refresh</button>
+<p id="fav_message"></p>
+<table border="1">
+    <thead><tr><th>Title</th><th>Author</th><th>Genre</th><th>Action</th></tr></thead>
+    <tbody id="favoritesList"></tbody>
+</table>
+<hr>
+
+<!-- My Active Requests -->
+<h3>My Book Requests</h3>
+<button onclick="loadMyRequests()">Refresh</button>
+<p id="requests_message"></p>
+<table border="1">
+    <thead><tr>
+        <th>Book Title</th><th>Status</th><th>Requested At</th><th>Action</th>
+    </tr></thead>
+    <tbody id="requestsList"></tbody>
+</table>
+<hr>
+
+<!-- Book Request History (Returned + Lost only) -->
+<h3>Book Request History</h3>
+<button onclick="loadHistory()">Refresh</button>
+<p id="history_message"></p>
+<table border="1">
+    <thead><tr>
+        <th>Book Title</th><th>Status</th><th>Condition</th>
+        <th>Requested At</th><th>Returned At</th>
+    </tr></thead>
+    <tbody id="historyList"></tbody>
+</table>
+
+<script>
+    //const BASE = "http://localhost:3000/api/students";
+    const BASE  = "http://192.168.1.39:3000/api/students";
+
+    const token = localStorage.getItem("token");
+    const role  = localStorage.getItem("role");
+
+    if (!token || role !== "student") {
+        alert("Access denied. Students only.");
+        window.location.href = "index.html";
+    }
+
+    function authHeaders() {
+        return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+    }
+
+    const STATUS_MAP = {
+        Pending:   "Pending",
+        Accepted:  "Ready to Pick Up",
+        PickedUp:  "Return Soon",
+        Declined:  "Declined",
+        Returned:  "Returned",
+        Lost:      "Lost",
+        Cancelled: "Cancelled",
+    };
+
+    const ACADEMIC_GENRES     = ["Theses", "Journal", "Research Book", "Text Book"];
+    const NON_ACADEMIC_GENRES = ["Fiction", "Mystery", "Horror", "Romance", "Adventure", "Historical"];
+
+    // ── Global account status — checked before every request ─────────────────
+    // Populated by loadProfile(). All request buttons read this.
+    let studentStatus = "active";
+
+    function onCategoryChange() {
+        const cat      = document.getElementById("catFilter").value;
+        const genreSel = document.getElementById("genreFilter");
+        genreSel.innerHTML = '<option value="">All Genres</option>';
+        const genres = cat === "Academic" ? ACADEMIC_GENRES
+            : cat === "Non-Academic" ? NON_ACADEMIC_GENRES : [];
+        genres.forEach(g => {
+            const opt = document.createElement("option");
+            opt.value = g; opt.textContent = g;
+            genreSel.appendChild(opt);
+        });
+    }
+
+    function clearFilters() {
+        document.getElementById("bookSearch").value  = "";
+        document.getElementById("catFilter").value   = "";
+        document.getElementById("genreFilter").value = "";
+        document.getElementById("sortBooks").value   = "";
+        onCategoryChange();
+        loadBooks();
+    }
+
+    let searchTimer = null;
+    function debounceSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => { loadBooks(); loadRecommendations(); }, 500);
+    }
+
+    let favoritesCache = {};
+
+    async function loadFavoritesCache() {
+        try {
+            const res  = await fetch(`${BASE}/favorites`, { headers: authHeaders() });
+            const data = await res.json();
+            favoritesCache = {};
+            if (res.ok && Array.isArray(data)) {
+                data.forEach(f => { favoritesCache[f.mongo_id] = f; });
+            }
+        } catch (err) { console.error("Could not load favorites:", err); }
+    }
+
+    function isFavorite(mongoId) { return !!favoritesCache[mongoId]; }
+
+    // ── Profile — stores status globally ──────────────────────────────────────
+    async function loadProfile() {
+        try {
+            const res  = await fetch(`${BASE}/profile`, { headers: authHeaders() });
+            const data = await res.json();
+            if (res.ok) {
+                studentStatus = data.status;   // save globally
+                document.getElementById("stu_id").innerText         = data.stu_id;
+                document.getElementById("name").innerText           = `${data.lName}, ${data.fName} ${data.mName}`;
+                document.getElementById("yearAndSection").innerText = data.yearAndSection;
+                // Show status with visual indicator
+                const statusEl = document.getElementById("status");
+                statusEl.innerText = data.status.toUpperCase();
+                statusEl.style.color = data.status === "hold" ? "red" : "green";
+                statusEl.style.fontWeight = "bold";
+
+                // If account is on hold, show a persistent warning banner
+                if (data.status === "hold") {
+                    document.getElementById("books_message").innerText =
+                        "⚠️ Your account is on hold. You cannot request books until it is lifted by the admin or librarian.";
+                    document.getElementById("books_message").style.color = "red";
+                }
+            }
+        } catch (err) { console.error("Profile fetch error:", err); }
+    }
+
+    // ── Books ──────────────────────────────────────────────────────────────────
+    async function loadBooks() {
+        const tbody   = document.getElementById("booksList");
+        const message = document.getElementById("books_message");
+        tbody.innerHTML = "";
+
+        // Keep the hold warning visible if on hold
+        if (studentStatus !== "hold") message.innerText = "";
+
+        const search   = document.getElementById("bookSearch").value.trim();
+        const category = document.getElementById("catFilter").value;
+        const genre    = document.getElementById("genreFilter").value;
+        const sort     = document.getElementById("sortBooks").value;
+        const params   = new URLSearchParams();
+        if (search)   params.append("search",   search);
+        if (category) params.append("category", category);
+        if (genre)    params.append("genre",    genre);
+
+        try {
+            const [booksRes, reqRes] = await Promise.all([
+                fetch(`${BASE}/books?${params.toString()}`, { headers: authHeaders() }),
+                fetch(`${BASE}/requests`,                   { headers: authHeaders() })
+            ]);
+
+            let books    = await booksRes.json();
+            const reqData = await reqRes.json();
+
+            if (sort === "title_asc")   books = books.sort((a,b)=>a.title.localeCompare(b.title));
+            if (sort === "title_desc")  books = books.sort((a,b)=>b.title.localeCompare(a.title));
+            if (sort === "author_asc")  books = books.sort((a,b)=>a.author.localeCompare(b.author));
+            if (sort === "avail_desc")  books = books.sort((a,b)=>b.available_copies-a.available_copies);
+
+            const requestedBooks = {};
+            if (reqRes.ok && Array.isArray(reqData)) {
+                reqData.forEach(r => {
+                    if (!requestedBooks[r.isbn] ||
+                        ["Pending","Accepted","PickedUp"].includes(r.status)) {
+                        requestedBooks[r.isbn] = { status: r.status, _id: r._id };
+                    }
+                });
+            }
+
+            if (booksRes.ok && books.length > 0) {
+                books.forEach(book => {
+                    const tr       = document.createElement("tr");
+                    const mongoId  = book._id.toString();
+                    const favLabel = isFavorite(mongoId) ? "★ Unfavorite" : "☆ Favorite";
+                    const req      = requestedBooks[book.isbn];
+                    const status   = req ? req.status : null;
+
+                    let requestCell;
+
+                    // ── If account is on hold — no request buttons at all ──────
+                    if (studentStatus === "hold") {
+                        requestCell = `<span style="color:red;">Account on hold</span>`;
+                    } else if (!status) {
+                        requestCell = book.available_copies > 0
+                            ? `<button onclick="requestBook('${mongoId}')">Request</button>`
+                            : `<span style="color:gray;">Unavailable</span>`;
+                    } else if (status === "Pending") {
+                        requestCell = `<span>Pending</span>
+                                       <button onclick="cancelRequest('${req._id}')">Cancel</button>`;
+                    } else if (status === "Accepted") {
+                        requestCell = `<span>Ready to Pick Up</span>`;
+                    } else if (status === "PickedUp") {
+                        requestCell = `<span>Return Soon</span>`;
+                    } else if (["Returned","Declined","Cancelled","Lost"].includes(status)) {
+                        requestCell = book.available_copies > 0
+                            ? `<span>${STATUS_MAP[status]}</span>
+                               <button onclick="requestBook('${mongoId}')">Request Again</button>`
+                            : `<span>${STATUS_MAP[status]} — Unavailable</span>`;
+                    } else {
+                        requestCell = `<span>${status}</span>`;
+                    }
+
+                    tr.innerHTML = `
+                        <td>${book.title}</td>
+                        <td>${book.author}</td>
+                        <td>${book.category || "—"}</td>
+                        <td>${book.genre}</td>
+                        <td>${book.publisher}</td>
+                        <td>${book.available_copies}</td>
+                        <td><button onclick="toggleFavorite('${mongoId}')">${favLabel}</button></td>
+                        <td>${requestCell}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                if (studentStatus !== "hold") message.innerText = "";
+            } else {
+                if (studentStatus !== "hold") message.innerText = "No books found.";
+            }
+        } catch (err) {
+            if (studentStatus !== "hold") message.innerText = "Cannot connect to server.";
+        }
+    }
+
+    // ── Toggle Favorite ────────────────────────────────────────────────────────
+    async function toggleFavorite(mongoId) {
+        try {
+            const res  = await fetch(`${BASE}/favorites`, {
+                method: "POST", headers: authHeaders(),
+                body: JSON.stringify({ mongo_id: mongoId  })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                favoritesCache = {};
+                if (Array.isArray(data.favorites)) {
+                    data.favorites.forEach(f => { favoritesCache[f.mongo_id] = f; });
+                }
+                loadBooks();
+                loadFavorites();
+                loadRecommendations();
+            } else { alert(data.message || "Could not update favorites."); }
+        } catch (err) { alert("Cannot connect to server."); }
+    }
+
+    // ── Favorites List ─────────────────────────────────────────────────────────
+    async function loadFavorites() {
+        const tbody   = document.getElementById("favoritesList");
+        const message = document.getElementById("fav_message");
+        tbody.innerHTML = "";
+        await loadFavoritesCache();
+        const keys = Object.keys(favoritesCache);
+        if (keys.length > 0) {
+            keys.forEach(mongoId => {
+                const f  = favoritesCache[mongoId];
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${f.title}</td><td>${f.author}</td><td>${f.genre}</td>
+                    <td><button onclick="toggleFavorite('${mongoId}')">Remove</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            message.innerText = "";
+        } else { message.innerText = "No favorites yet."; }
+    }
+
+    // ── Request Book — blocked if account is on hold ───────────────────────────
+    async function requestBook(mongoId) {
+        const message = document.getElementById("books_message");
+
+        // Double-check status at request time (in case it changed during the session)
+        if (studentStatus === "hold") {
+            message.innerText = "Your account is on hold. You cannot request books.";
+            message.style.color = "red";
+            return;
+        }
+
+        try {
+            const res  = await fetch(`${BASE}/requests`, {
+                method: "POST", headers: authHeaders(),
+                body: JSON.stringify({ mongo_id: mongoId  })
+            });
+            const data = await res.json();
+            message.innerText = data.message;
+            message.style.color = res.ok ? "green" : "red";
+            if (res.ok) { loadBooks(); loadMyRequests(); }
+        } catch (err) { message.innerText = "Cannot connect to server..."; }
+    }
+
+    // ── Cancel Request ─────────────────────────────────────────────────────────
+    async function cancelRequest(requestId) {
+        if (!confirm("Cancel this request?")) return;
+        const message = document.getElementById("books_message");
+        try {
+            const res  = await fetch(`${BASE}/requests/${requestId}`, {
+                method: "DELETE", headers: authHeaders()
+            });
+            const data = await res.json();
+            message.innerText = data.message;
+            if (res.ok) { loadBooks(); loadMyRequests(); }
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    // ── Active Requests ────────────────────────────────────────────────────────
+    async function loadMyRequests() {
+        const tbody   = document.getElementById("requestsList");
+        const message = document.getElementById("requests_message");
+        tbody.innerHTML = "";
+        try {
+            const res  = await fetch(`${BASE}/requests`, { headers: authHeaders() });
+            const data = await res.json();
+            if (res.ok && data.length > 0) {
+                data.forEach(req => {
+                    const tr         = document.createElement("tr");
+                    const actionCell = req.status === "Pending"
+                        ? `<button onclick="cancelRequest('${req._id}')">Cancel</button>`
+                        : "—";
+                    tr.innerHTML = `
+                        <td>${req.book_title}</td>
+                        <td>${STATUS_MAP[req.status] || req.status}</td>
+                        <td>${new Date(req.request_time).toLocaleString()}</td>
+                        <td>${actionCell}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                message.innerText = "";
+            } else { message.innerText = "No active requests."; }
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    // ── Request History (Returned + Lost) ──────────────────────────────────────
+    async function loadHistory() {
+        const tbody   = document.getElementById("historyList");
+        const message = document.getElementById("history_message");
+        tbody.innerHTML = "";
+        try {
+            const res  = await fetch(`${BASE}/history`, { headers: authHeaders() });
+            const data = await res.json();
+            if (res.ok && data.length > 0) {
+                data.forEach(req => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${req.book_title}</td>
+                        <td>${STATUS_MAP[req.status] || req.status}</td>
+                        <td>${req.book_condition || "—"}</td>
+                        <td>${new Date(req.request_time).toLocaleString()}</td>
+                        <td>${req.responded_time ? new Date(req.responded_time).toLocaleString() : "—"}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                message.innerText = "";
+            } else { message.innerText = "No book history yet."; }
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    // ── Recommendations ────────────────────────────────────────────────────────
+    async function loadRecommendations() {
+        const section = document.getElementById("recSection");
+        const tbody   = document.getElementById("recList");
+        tbody.innerHTML = "";
+        try {
+            const searchQ = encodeURIComponent(document.getElementById("bookSearch").value.trim());
+            const res  = await fetch(`http://localhost:3000/api/recommend?q=${searchQ}`, { headers: authHeaders() });
+            const data = await res.json();
+            if (data.recommendations && data.recommendations.length > 0) {
+                data.recommendations.forEach(book => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${book.title}</td>
+                        <td>${book.author}</td>
+                        <td>${book.category || "—"}</td>
+                        <td>${book.genre}</td>
+                        <td><button onclick="requestByISBN('${book.isbn}')">Request</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                section.style.display = "block";
+            } else { section.style.display = "none"; }
+        } catch (err) { section.style.display = "none"; }
+    }
+
+    // ── Trending ───────────────────────────────────────────────────────────────
+    async function loadTrending() {
+        const section = document.getElementById("trendingSection");
+        const tbody   = document.getElementById("trendingList");
+        tbody.innerHTML = "";
+        try {
+            const res  = await fetch("http://localhost:3000/api/recommend/trending");
+            const data = await res.json();
+            if (data.trending && data.trending.length > 0) {
+                data.trending.forEach(book => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${book.title}</td>
+                        <td>${book.author}</td>
+                        <td>${book.category || "—"}</td>
+                        <td>${book.genre}</td>
+                        <td><button onclick="requestByISBN('${book.isbn}')">Request</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                section.style.display = "block";
+            } else { section.style.display = "none"; }
+        } catch (err) { section.style.display = "none"; }
+    }
+
+    async function requestByISBN(isbn) {
+        try {
+            const res   = await fetch(`${BASE}/books`, { headers: authHeaders() });
+            const books = await res.json();
+            const book  = books.find(b => b.isbn === isbn);
+            if (book) requestBook(book._id.toString());
+            else alert("Book not found.");
+        } catch (err) { alert("Cannot connect to server."); }
+    }
+
+    function logout() { localStorage.clear(); window.location.href = "index.html"; }
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+    (async () => {
+        await loadProfile();
+        await loadFavoritesCache();
+        loadBooks();
+        loadFavorites();
+        loadMyRequests();
+        loadHistory();
+        loadRecommendations();
+        loadTrending();
+    })();
+</script>
+</body>
+</html>

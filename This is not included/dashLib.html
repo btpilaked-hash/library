@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Librarian Dashboard</title>
+    <style>
+        .dot-menu { position:relative; display:inline-block; }
+        .dot-btn  { background:none; border:1px solid #999; border-radius:4px;
+            cursor:pointer; padding:2px 8px; font-size:16px; }
+        .dot-dropdown { display:none; position:absolute; right:0; background:#fff;
+            border:1px solid #ccc; border-radius:4px; min-width:130px;
+            z-index:100; box-shadow:2px 2px 6px rgba(0,0,0,.2); }
+        .dot-dropdown button { display:block; width:100%; text-align:left;
+            padding:8px 12px; border:none; background:none;
+            cursor:pointer; font-size:14px; }
+        .dot-dropdown button:hover { background:#f0f0f0; }
+        .dot-menu.open .dot-dropdown { display:block; }
+    </style>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        #isbnBox { border:1px solid #bbb; border-radius:6px; padding:12px; margin-bottom:10px; background:#f9f9f9; }
+        #scanner-container { width:100%; max-width:380px; margin-top:6px; }
+        #isbn_status { font-size:13px; margin-top:5px; min-height:16px; }
+        #isbn_status.found    { color:green; }
+        #isbn_status.notfound { color:darkorange; }
+        #isbn_status.loading  { color:#555; }
+        #isbn_status.error    { color:red; }
+    </style>
+</head>
+<body>
+<h2>Librarian Dashboard</h2>
+<button onclick="logout()">Logout</button>
+<hr>
+
+<!-- Profile -->
+<h3>My Profile</h3>
+<p><strong>Librarian ID:</strong> <span id="lib_id">—</span></p>
+<p><strong>Name:</strong> <span id="name">—</span></p>
+<p><strong>Contact Number:</strong> <span id="cNumber">—</span></p>
+<p><strong>Email:</strong> <span id="unp_email">—</span></p>
+<hr>
+
+<h3>Add Book</h3>
+<p id="addBook_message"></p>
+<label>Title</label><br><input type="text" id="title" placeholder="Title"/><br><br>
+<label>Author</label><br><input type="text" id="author" placeholder="Author"/><br><br>
+<div id="isbnBox">
+    <label>ISBN Lookup</label><br>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+        <input type="text" id="isbn" placeholder="Enter or scan ISBN" style="flex:1;min-width:160px;"/>
+        <button type="button" onclick="lookupISBN()">🔍 Lookup</button>
+        <button type="button" id="scanBtn" onclick="toggleScanner()">📷 Scan</button>
+    </div>
+    <div id="scanner-container"></div>
+    <p id="isbn_status"></p>
+</div>
+<label>Total Copies</label><br><input type="number" id="total_copies" min="1"/><br><br>
+<label>Available Copies</label><br><input type="number" id="available_copies" min="0"/><br><br>
+<label>Category</label><br>
+<select id="category" onchange="populateGenres('category','genre')">
+    <option value="">-- Select Category --</option>
+    <option value="Academic">Academic</option>
+    <option value="Non-Academic">Non-Academic</option>
+</select><br><br>
+<label>Genre</label><br>
+<select id="genre">
+    <option value="">-- Select Genre --</option>
+</select><br><br>
+<label>Publisher</label><br><input type="text" id="publisher" placeholder="Publisher"/><br><br>
+<label>Publish Year</label><br><input type="date" id="publish_year"/><br><br>
+<label>Book Cover Image</label><br>
+<input type="file" id="image" accept="image/jpeg,image/jpg,image/png,image/webp"/><br><br>
+<button onclick="addBook()">Add Book</button>
+<hr>
+
+<!-- All Books -->
+<h3>All Books</h3>
+<button onclick="loadAllBooks()">Refresh</button>
+<p id="allBooks_message"></p>
+<table border="1">
+    <thead><tr>
+        <th>Title</th><th>Author</th><th>ISBN</th>
+        <th>Category</th><th>Genre</th><th>Publisher</th>
+        <th>Published Year</th><th>Total</th><th>Available</th>
+        <th>Added to Library</th><th>Image</th><th>Action</th>
+    </tr></thead>
+    <tbody id="allBooksList"></tbody>
+</table>
+<hr>
+
+<!-- Edit Book Panel -->
+<div id="editBookPanel" style="display:none;border:1px solid #999;padding:16px;margin-bottom:16px;">
+    <h4>Edit Book</h4>
+    <input type="hidden" id="edit_book_mongo_id"/>
+    <label>Title</label><br><input type="text" id="edit_title"/><br><br>
+    <label>Author</label><br><input type="text" id="edit_author"/><br><br>
+    <label>Total Copies</label><br><input type="number" id="edit_total_copies" min="1"/><br><br>
+    <label>Available Copies</label><br><input type="number" id="edit_available_copies" min="0"/><br><br>
+    <label>Category</label><br>
+    <select id="edit_category" onchange="populateGenres('edit_category','edit_genre')">
+        <option value="">-- Select Category --</option>
+        <option value="Academic">Academic</option>
+        <option value="Non-Academic">Non-Academic</option>
+    </select><br><br>
+    <label>Genre</label><br>
+    <select id="edit_genre"><option value="">-- Select Genre --</option></select><br><br>
+    <label>Publisher</label><br><input type="text" id="edit_publisher"/><br><br>
+    <button onclick="saveBookEdit()">Save</button>
+    <button onclick="document.getElementById('editBookPanel').style.display='none'">Cancel</button>
+    <p id="edit_book_message"></p>
+</div>
+
+<!-- Book Requests -->
+<h3>Book Requests</h3>
+<button onclick="loadRequests()">Refresh</button>
+&nbsp;
+<label>Filter: </label>
+<select id="statusFilter" onchange="loadRequests()">
+    <option value="all">All</option>
+    <option value="Pending">Pending</option>
+    <option value="Accepted">Accepted</option>
+    <option value="PickedUp">Picked Up</option>
+    <option value="Declined">Declined</option>
+    <option value="Returned">Returned</option>
+    <option value="Cancelled">Cancelled</option>
+</select>
+<p id="requests_message"></p>
+<table border="1">
+    <thead><tr>
+        <th>Student Name</th><th>Student ID</th><th>Year &amp; Section</th>
+        <th>Book Title</th><th>Status</th><th>Requested At</th><th>Action</th>
+    </tr></thead>
+    <tbody id="requestsList"></tbody>
+</table>
+<hr>
+
+<!-- All Students (read-only) -->
+<h3>Student Accounts</h3>
+<button onclick="loadStudents()">Refresh</button>
+<p id="students_message"></p>
+<table border="1">
+    <thead><tr>
+        <th>Student ID</th><th>Name</th><th>Year &amp; Section</th><th>Status</th><th>PIN</th>
+    </tr></thead>
+    <tbody id="studentsList"></tbody>
+</table>
+
+<script>
+    //const LIB_BASE   = "http://localhost:3000/api/librarians";
+    //const BOOK_BASE  = "http://localhost:3000/api/book";
+    //const ADMIN_BASE = "http://localhost:3000/api/admin";
+
+    const LIB_BASE   = "http://localhost:3000/api/librarians";
+    const BOOK_BASE  = "http://localhost:3000/api/book";
+    const ADMIN_BASE = "http://localhost:3000/api/admin";
+    const token      = localStorage.getItem("token");
+    const role       = localStorage.getItem("role");
+
+    if (!token || role !== "librarian") {
+        alert("Access denied. Librarians only.");
+        window.location.href = "logLib.html";
+    }
+
+    function authHeaders() { return { "Authorization": `Bearer ${token}` }; }
+    function jsonHeaders() { return { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" }; }
+
+    // ── Dot menus ──────────────────────────────────────────────────────────────
+    document.addEventListener("click", e => {
+        if (!e.target.closest(".dot-menu"))
+            document.querySelectorAll(".dot-menu.open").forEach(m => m.classList.remove("open"));
+    });
+    function toggleDot(el) { el.closest(".dot-menu").classList.toggle("open"); }
+
+    // ── Category / Genre ───────────────────────────────────────────────────────
+    const ACADEMIC_GENRES     = ["Theses", "Journal", "Research Book", "Text Book"];
+    const NON_ACADEMIC_GENRES = ["Fiction", "Mystery", "Horror", "Romance", "Adventure", "Historical"];
+
+    function populateGenres(catId, genreId) {
+        const cat = document.getElementById(catId).value;
+        const sel = document.getElementById(genreId);
+        sel.innerHTML = '<option value="">-- Select Genre --</option>';
+        const genres = cat === "Academic" ? ACADEMIC_GENRES
+            : cat === "Non-Academic" ? NON_ACADEMIC_GENRES : [];
+        genres.forEach(g => {
+            const opt = document.createElement("option");
+            opt.value = g; opt.textContent = g;
+            sel.appendChild(opt);
+        });
+    }
+
+    // ── Profile ────────────────────────────────────────────────────────────────
+    async function loadProfile() {
+        try {
+            const res  = await fetch(`${LIB_BASE}/profile`, { headers: jsonHeaders() });
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById("lib_id").innerText    = data.lib_id;
+                document.getElementById("name").innerText      = `${data.lName}, ${data.fName} ${data.mName}`;
+                document.getElementById("cNumber").innerText   = data.cNumber;
+                document.getElementById("unp_email").innerText = data.unp_email;
+            }
+        } catch (err) { console.error("Profile fetch error:", err); }
+    }
+
+    // ── Add Book ───────────────────────────────────────────────────────────────
+    async function addBook() {
+        const message   = document.getElementById("addBook_message");
+        const imageFile = document.getElementById("image").files[0];
+
+        const fields = {
+            title:            document.getElementById("title").value.trim(),
+            author:           document.getElementById("author").value.trim(),
+            isbn:             document.getElementById("isbn").value.trim(),
+            total_copies:     document.getElementById("total_copies").value.trim(),
+            available_copies: document.getElementById("available_copies").value.trim(),
+            category:         document.getElementById("category").value.trim(),
+            genre:            document.getElementById("genre").value.trim(),
+            publisher:        document.getElementById("publisher").value.trim(),
+            publish_year:     document.getElementById("publish_year").value.trim(),
+        };
+
+        if (!title || !author || !isbn || !total_copies || !available_copies || !genre || !publisher || !publish_year || !image) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+        if (!imageFile) { message.innerText = "Please upload a book cover image."; return; }
+
+        const formData = new FormData();
+        Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
+        formData.append("image", imageFile);
+
+        try {
+            const res  = await fetch(`${BOOK_BASE}/addBook`, { method: "POST", headers: authHeaders(), body: formData });
+            const data = await res.json();
+            message.innerText = data.message;
+            if (res.ok) {
+                ["title","author","isbn","total_copies","available_copies","publisher","publish_year"]
+                    .forEach(id => document.getElementById(id).value = "");
+                document.getElementById("category").value = "";
+                document.getElementById("genre").innerHTML = '<option value="">-- Select Genre --</option>';
+                document.getElementById("image").value = "";
+                loadAllBooks();
+            }
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    // ── All Books ──────────────────────────────────────────────────────────────
+    async function loadAllBooks() {
+        const tbody  = document.getElementById("allBooksList");
+        const message = document.getElementById("allBooks_message");
+        tbody.innerHTML = "";
+        try {
+            const res  = await fetch(`${BOOK_BASE}/getBooks`);
+            const data = await res.json();
+            if (res.ok && data.length > 0) {
+                data.forEach(book => {
+                    const tr    = document.createElement("tr");
+                    const imgId = `cover_${book._id}`;
+                    const year  = book.publish_year ? new Date(book.publish_year).getFullYear() : "—";
+                    const added = book.createdAt    ? new Date(book.createdAt).toLocaleDateString() : "—";
+                    tr.innerHTML = `
+                    <td>${book.title}</td>
+                    <td>${book.author}</td>
+                    <td>${book.isbn || "—"}</td>
+                    <td>${book.category || "—"}</td>
+                    <td>${book.genre || "—"}</td>
+                    <td>${book.publisher}</td>
+                    <td>${year}</td>
+                    <td>${book.total_copies}</td>
+                    <td>${book.available_copies}</td>
+                    <td>${added}</td>
+                    <td>
+                        <button onclick="toggleCover('${book._id}','${book.image}','${imgId}',this)">Show</button><br>
+                        <img id="${imgId}" style="display:none;width:100px;margin-top:4px;"/>
+                    </td>
+                    <td>
+                        <div class="dot-menu">
+                            <button class="dot-btn" onclick="toggleDot(this)">•••</button>
+                            <div class="dot-dropdown">
+                                <button onclick="openBookEdit('${book._id}','${book.title}','${book.author}',${book.total_copies},${book.available_copies},'${book.category||''}','${book.genre||''}','${book.publisher}')">✏️ Edit</button>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                    tbody.appendChild(tr);
+                });
+                message.innerText = "";
+            } else { message.innerText = "No books yet."; }
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    function toggleCover(bookId, imagePath, imgId, btn) {
+        const img = document.getElementById(imgId);
+        if (img.style.display === "none") {
+            img.src = `http://localhost:3000${imagePath}`;
+            img.style.display = "block"; btn.innerText = "Hide";
+        } else { img.style.display = "none"; btn.innerText = "Show"; }
+    }
+
+    function openBookEdit(id, title, author, total, available, category, genre, publisher) {
+        document.getElementById("edit_book_mongo_id").value      = id;
+        document.getElementById("edit_title").value              = title;
+        document.getElementById("edit_author").value             = author;
+        document.getElementById("edit_total_copies").value       = total;
+        document.getElementById("edit_available_copies").value   = available;
+        document.getElementById("edit_category").value           = category;
+        populateGenres("edit_category", "edit_genre");
+        document.getElementById("edit_genre").value              = genre;
+        document.getElementById("edit_publisher").value          = publisher;
+        document.getElementById("edit_book_message").innerText   = "";
+        document.getElementById("editBookPanel").style.display   = "block";
+        document.getElementById("editBookPanel").scrollIntoView({ behavior: "smooth" });
+    }
+
+    async function saveBookEdit() {
+        const id      = document.getElementById("edit_book_mongo_id").value;
+        const message = document.getElementById("edit_book_message");
+        const body = {
+            title:            document.getElementById("edit_title").value.trim(),
+            author:           document.getElementById("edit_author").value.trim(),
+            total_copies:     Number(document.getElementById("edit_total_copies").value),
+            available_copies: Number(document.getElementById("edit_available_copies").value),
+            category:         document.getElementById("edit_category").value.trim(),
+            genre:            document.getElementById("edit_genre").value.trim(),
+            publisher:        document.getElementById("edit_publisher").value.trim(),
+        };
+        try {
+            const res  = await fetch(`${BOOK_BASE}/updateBook/${id}`, {
+                method: "PUT", headers: jsonHeaders(), body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            message.innerText = data.message;
+            if (res.ok) { document.getElementById("editBookPanel").style.display = "none"; loadAllBooks(); }
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    // ── Status display map ─────────────────────────────────────────────────────
+    const STATUS_MAP = {
+        Pending:   "⏳ Pending",
+        Accepted:  "📋 To Be Pick Up",
+        PickedUp:  "🔁 To Be Return",
+        Declined:  "❌ Declined",
+        Returned:  "🔄 Returned",
+        Cancelled: "🚫 Cancelled",
+    };
+
+    // ── Requests ───────────────────────────────────────────────────────────────
+    async function loadRequests() {
+        const tbody       = document.getElementById("requestsList");
+        const message     = document.getElementById("requests_message");
+        const filterStatus = document.getElementById("statusFilter").value;
+        tbody.innerHTML   = "";
+        message.innerText = "";
+
+        try {
+            const res  = await fetch(`${LIB_BASE}/requests`, { headers: jsonHeaders() });
+            const data = await res.json();
+
+            if (!res.ok) { message.innerText = data.message || "Failed to load requests."; return; }
+            if (!data.length) { message.innerText = "No requests yet."; return; }
+
+            const filtered = filterStatus === "all" ? data : data.filter(r => r.status === filterStatus);
+            if (!filtered.length) { message.innerText = `No ${filterStatus} requests.`; return; }
+
+            filtered.forEach(req => {
+                const tr = document.createElement("tr");
+
+                // Action cell based on current status
+                let actionCell = "—";
+                if (req.status === "Pending") {
+                    actionCell = `
+                    <button onclick="respond('${req._id}','Accepted')">✅ Accept</button>
+                    &nbsp;
+                    <button onclick="respond('${req._id}','Declined')">❌ Decline</button>
+                `;
+                } else if (req.status === "Accepted") {
+                    actionCell = `<button onclick="markPickedUp('${req._id}')">📦 Picked Up</button>`;
+                } else if (req.status === "PickedUp") {
+                    actionCell = `<button onclick="markReturned('${req._id}')">🔄 Returned</button>`;
+                }
+
+                tr.innerHTML = `
+                <td>${req.student_name}</td>
+                <td>${req.stu_id}</td>
+                <td>${req.yearAndSection}</td>
+                <td>${req.book_title}</td>
+                <td>${STATUS_MAP[req.status] || req.status}</td>
+                <td>${new Date(req.request_time).toLocaleString()}</td>
+                <td>${actionCell}</td>
+            `;
+                tbody.appendChild(tr);
+            });
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    // ── Accept / Decline ───────────────────────────────────────────────────────
+    async function respond(requestId, status) {
+        const message = document.getElementById("requests_message");
+        const label   = status === "Accepted" ? "accept" : "decline";
+        if (!confirm(`Are you sure you want to ${label} this request?`)) return;
+
+        try {
+            const res  = await fetch(`${LIB_BASE}/requests/${requestId}`, {
+                method:  "PUT",
+                headers: jsonHeaders(),
+                body:    JSON.stringify({ status }),
+            });
+            const data = await res.json();
+            message.innerText = data.message || (res.ok ? "Done." : "Failed.");
+            if (res.ok) loadRequests();
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    // ── Mark Picked Up ────────────────────────────────────────────────────────
+    async function markPickedUp(requestId) {
+        const message = document.getElementById("requests_message");
+        if (!confirm("Mark this book as picked up?")) return;
+        try {
+            const res  = await fetch(`${LIB_BASE}/requests/${requestId}/pickedup`, {
+                method: "PUT", headers: jsonHeaders(),
+            });
+            const data = await res.json();
+            message.innerText = data.message || (res.ok ? "Done." : "Failed.");
+            if (res.ok) loadRequests();
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    // ── Mark Returned ──────────────────────────────────────────────────────────
+    async function markReturned(requestId) {
+        const message = document.getElementById("requests_message");
+        if (!confirm("Mark this book as returned?")) return;
+        try {
+            const res  = await fetch(`${LIB_BASE}/requests/${requestId}/returned`, {
+                method: "PUT", headers: jsonHeaders(),
+            });
+            const data = await res.json();
+            message.innerText = data.message || (res.ok ? "Done." : "Failed.");
+            if (res.ok) loadRequests();
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    // ── All Students (read-only) ───────────────────────────────────────────────
+    async function loadStudents() {
+        const tbody  = document.getElementById("studentsList");
+        const message = document.getElementById("students_message");
+        tbody.innerHTML = "";
+        try {
+            const res  = await fetch(`${LIB_BASE}/students`, { headers: jsonHeaders() });
+            const data = await res.json();
+            if (res.ok && data.length > 0) {
+                data.forEach(stu => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                    <td>${stu.stu_id}</td>
+                    <td>${stu.lName}, ${stu.fName} ${stu.mName}</td>
+                    <td>${stu.yearAndSection}</td>
+                    <td>${stu.status}</td>
+                    <td>${stu.pin}</td>
+                `;
+                    tbody.appendChild(tr);
+                });
+                message.innerText = "";
+            } else { message.innerText = "No students found."; }
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    let _scanner = null;
+    let _scannerRunning = false;
+
+    function setIsbnStatus(msg, cls) {
+        const el = document.getElementById("isbn_status");
+        el.className = cls;
+        el.innerText = msg;
+    }
+
+    // Autofill helper — only fills fields that have a value
+    function autofillBook(data) {
+        const set = (id, val) => { if (val) document.getElementById(id).value = val; };
+        set("title",     data.title);
+        set("author",    data.author);
+        set("publisher", data.publisher);
+        if (data.publish_year) {
+            // Normalise to YYYY-MM-DD for the date input
+            const raw = String(data.publish_year);
+            const yr  = raw.length === 4 ? raw + "-01-01" : raw.slice(0, 10);
+            document.getElementById("publish_year").value = yr;
+        }
+        // Category / Genre — only if recognisable
+        if (data.category) {
+            const catEl = document.getElementById("category");
+            catEl.value = data.category;
+            populateGenres("category", "genre");
+            if (data.genre) document.getElementById("genre").value = data.genre;
+        }
+    }
+
+    async function lookupISBN() {
+        const isbn = document.getElementById("isbn").value.trim();
+        if (!isbn) { setIsbnStatus("Please enter an ISBN first.", "error"); return; }
+        setIsbnStatus("Checking database…", "loading");
+
+        // ── Step 1: local DB ───────────────────────────────
+        try {
+            const res  = await fetch(`${BOOK_BASE}/getByISBN/${encodeURIComponent(isbn)}`);
+            if (res.ok) {
+                const book = await res.json();
+                autofillBook({
+                    title:       book.title,
+                    author:      book.author,
+                    publisher:   book.publisher,
+                    publish_year:book.publish_year,
+                    category:    book.category,
+                    genre:       book.genre,
+                });
+                setIsbnStatus("✅ Found in library database — fields autofilled.", "found");
+                return;
+            }
+        } catch (_) {}
+
+        setIsbnStatus("Not in database — searching Google Books…", "loading");
+        try {
+            const gRes  = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+            const gData = await gRes.json();
+            if (gData.totalItems > 0) {
+                const info = gData.items[0].volumeInfo;
+                autofillBook({
+                    title:       info.title,
+                    author:      (info.authors || []).join(", "),
+                    publisher:   info.publisher,
+                    publish_year:info.publishedDate,
+                });
+                setIsbnStatus("✅ Found on Google Books — fields autofilled.", "found");
+                return;
+            }
+        } catch (_) {}
+
+        // ── Step 3: Open Library fallback ─────────────────
+        setIsbnStatus("Not on Google Books — trying Open Library…", "loading");
+        try {
+            const oRes  = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+            const oData = await oRes.json();
+            const key   = `ISBN:${isbn}`;
+            if (oData[key]) {
+                const b = oData[key];
+                autofillBook({
+                    title:       b.title,
+                    author:      (b.authors || []).map(a => a.name).join(", "),
+                    publisher:   (b.publishers || []).map(p => p.name).join(", "),
+                    publish_year:b.publish_date,
+                });
+                setIsbnStatus("✅ Found on Open Library — fields autofilled.", "found");
+                return;
+            }
+        } catch (_) {}
+
+        // ── Nothing found ──────────────────────────────────
+        setIsbnStatus("Book not found. Please enter details manually.", "notfound");
+    }
+
+    async function toggleScanner() {
+        const btn = document.getElementById("scanBtn");
+        if (_scannerRunning) {
+            await stopScanner();
+            return;
+        }
+        btn.innerText = "⏹ Stop";
+        _scannerRunning = true;
+        setIsbnStatus("Point camera at the barcode…", "loading");
+
+        _scanner = new Html5Qrcode("scanner-container");
+        try {
+            await _scanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 300, height: 120 } },
+                async (decodedText) => {
+                    // Accept only ISBN-like barcodes (EAN-13 / ISBN-10/13)
+                    const clean = decodedText.trim();
+                    if (/^\d{10,13}$/.test(clean)) {
+                        document.getElementById("isbn").value = clean;
+                        await stopScanner();
+                        await lookupISBN();
+                    }
+                    // else ignore QR codes / non-ISBN barcodes
+                },
+                () => {} // ignore per-frame errors
+            );
+        } catch (err) {
+            setIsbnStatus("Camera error: " + err, "error");
+            await stopScanner();
+        }
+    }
+
+    async function stopScanner() {
+        const btn = document.getElementById("scanBtn");
+        btn.innerText = "📷 Scan";
+        _scannerRunning = false;
+        if (_scanner) {
+            try { await _scanner.stop(); _scanner.clear(); } catch (_) {}
+            _scanner = null;
+        }
+        document.getElementById("scanner-container").innerHTML = "";
+    }
+
+    function logout() { localStorage.clear(); window.location.href = "logLib.html"; }
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+    loadProfile();
+    loadAllBooks();
+    loadRequests();
+    loadStudents();
+</script>
+</body>
+</html>
+
+async function deleteBook(id) {
+if (!confirm("Delete this book? This cannot be undone.")) return;
+const msg = document.getElementById("tableMessage");
+try {
+const res  = await fetch(`${BOOK_BASE}/deleteBook/${id}`, { method: "DELETE" });
+const data = await res.json();
+msg.innerText = data.message;
+if (res.ok) loadBooks();
+} catch (err) { msg.innerText = "Cannot connect to server."; }
+}

@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Requests</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="studentRequests.css">
+</head>
+<body>
+
+<header>
+    <img src="luh.png" alt="LOGO" class="logo">
+    <div class="nav-actions">
+        <div class="favorites-btn" id="favoritesBtn" aria-label="Favorites" tabindex="0">
+            <i class="fa-regular fa-heart icon-btn"></i>
+        </div>
+        <div class="info-btn" id="infoBtn" aria-label="Info" tabindex="0">
+            <i class="fa-solid fa-circle-info"></i>
+        </div>
+        <div class="profile-btn" id="profileBtn" aria-label="Profile" tabindex="0">
+            <i class="fa-solid fa-user"></i>
+        </div>
+    </div>
+</header>
+
+<!-- FAVORITES DROPDOWN -->
+<div id="favorites-dropdown" aria-hidden="true">
+    <div class="dropdown-card">
+        <div class="favorites-header"><h3>Favorites</h3></div>
+        <div id="favorites-list">
+            <p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- INFO DROPDOWN -->
+<div id="info-dropdown" aria-hidden="true">
+    <div class="dropdown-card info-card">
+        <div class="info-header">
+            <img id="info-logo" src="luh.png" alt="College Logo" style="height:40px;width:auto;">
+            <h3 class="info-title" id="info-system-name">CCIT Library System</h3>
+        </div>
+        <div class="info-divider"></div>
+        <div class="info-body">
+            <h4>About the System</h4>
+            <p id="info-description">IBook is a highly efficient, user-friendly, and integrated library automation platform designed for the complete computerization of library operations for any academic institution. The system enables seamless handling of book cataloging, borrowing, user management, and activity tracking within a centralized platform.</p>
+        </div>
+    </div>
+</div>
+
+<!-- PROFILE DROPDOWN -->
+<div id="profile-dropdown" aria-hidden="true">
+    <div class="profdropdown-card">
+        <div class="profile-summary">
+            <div class="profile-avatar"><i class="fa-solid fa-user"></i></div>
+            <h3 id="student-name">—</h3>
+            <p id="student-id">ID: —</p>
+        </div>
+        <div class="profile-details">
+            <p><span>Year &amp; Section:</span> <span id="student-year">—</span></p>
+            <p><span>Status:</span> <span id="student-status-badge"></span></p>
+        </div>
+        <button class="dropdown-logout" onclick="logout()">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+    </div>
+</div>
+
+<main>
+    <h1>My Requests</h1>
+
+    <div class="top-bar">
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="txSearch" placeholder="Search book title..."
+                       oninput="filterTable()">
+                <i class="fa fa-search"></i>
+            </div>
+        </div>
+        <div class="bottom-controls">
+            <button class="refresh-btn" onclick="loadMyRequests()">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            <div class="sort-controls">
+                <select id="sortSelect" onchange="applySortAndFilter()">
+                    <option value="">Sort By:</option>
+                    <option value="date-desc">Newest</option>
+                    <option value="date-asc">Oldest</option>
+                    <option value="az">A → Z</option>
+                    <option value="za">Z → A</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+
+    <p id="req_message" style="font-size:0.85rem;text-align:center;max-width:1300px;width:100%;"></p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+            <tr>
+                <th>Book Title</th>
+                <th>Status</th>
+                <th>Request Time</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody id="requests-list"></tbody>
+        </table>
+    </div>
+
+    <div class="mobile-request-list" id="mobile-request-list"></div>
+
+    <div class="empty-state" id="empty-state">No pending requests at this time.</div>
+</main>
+
+<script>
+    const SERVER = window.location.origin;
+    const BASE   = `${SERVER}/api/students`;
+    const token = localStorage.getItem("token");
+    const role  = localStorage.getItem("role");
+
+
+
+    function authHeaders() {
+        return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+    }
+    function logout() { localStorage.clear(); window.location.href = "/landingPage.html"; }
+
+    const STATUS_MAP = {
+        Pending: "Pending", Accepted: "Ready to Pick Up", PickedUp: "Return Soon",
+        Declined: "Declined", Returned: "Returned", Lost: "Lost", Cancelled: "Cancelled",
+    };
+    const STATUS_CLASS = {
+        Pending: "status-pending", Accepted: "status-accepted", PickedUp: "status-pickedup",
+        Declined: "status-declined", Returned: "status-returned", Lost: "status-lost", Cancelled: "status-cancelled",
+    };
+
+    let allRows = [];
+
+
+
+    // ── Requests ──────────────────────────────────────────────────────────────
+    async function loadMyRequests() {
+        await fetchBooksCache();
+        const tbody   = document.getElementById("requests-list");
+        const message = document.getElementById("req_message");
+        const empty   = document.getElementById("empty-state");
+        tbody.innerHTML = "";
+        allRows = [];
+        try {
+            const res  = await fetch(`${BASE}/requests`, { headers: authHeaders() });
+            const data = await res.json();
+            if (res.ok && Array.isArray(data) && data.length > 0) {
+                message.innerText = "";
+                empty.style.display = "none";
+                allRows = data;
+                renderRows(data);
+            } else {
+                empty.style.display = "block";
+                message.innerText = "";
+            }
+        } catch (err) {
+            message.innerText = "Cannot connect to server.";
+            message.style.color = "#ff6b6b";
+        }
+    }
+
+    function renderRows(rows) {
+        const tbody = document.getElementById("requests-list");
+        const mobileList = document.getElementById("mobile-request-list");
+        tbody.innerHTML = "";
+        mobileList.innerHTML = "";
+
+        rows.forEach(req => {
+            const tr = document.createElement("tr");
+            const statusLabel = STATUS_MAP[req.status] || req.status;
+            const statusClass = STATUS_CLASS[req.status] || "";
+            const canCancel = req.status === "Pending" || req.status === "Accepted";
+            const action = canCancel
+                ? `<button class="btn-cancel" onclick="cancelRequest('${req._id}', '${req.status}')">Cancel</button>`
+                : "—";
+            tr.innerHTML = `
+            <td>${req.book_title || "—"}</td>
+            <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+            <td>${req.request_time ? new Date(req.request_time).toLocaleString() : "—"}</td>
+            <td>${action}</td>
+        `;
+            tbody.appendChild(tr);
+
+            const book = booksCache.find(b => b.isbn === req.isbn);
+            const imgSrc = (book && book.image)
+                ? book.image
+                : `https://via.placeholder.com/65x87?text=📚`;
+            const card = document.createElement("div");
+            card.className = "mobile-request-card";
+            card.innerHTML = `
+            <img src="${imgSrc}" onerror="this.src='https://via.placeholder.com/65x87?text=📚'" alt="${req.book_title}">
+            <div class="mobile-request-info">
+                <span class="title">${req.book_title || "—"}</span>
+                <span class="time">${req.request_time ? new Date(req.request_time).toLocaleString() : "—"}</span>
+                <div class="mobile-bottom">
+                    <span class="status-badge ${statusClass}">${statusLabel}</span>
+                    ${(req.status === "Pending" || req.status === "Accepted") ? `<button class="btn-cancel" onclick="cancelRequest('${req._id}', '${req.status}')">Cancel</button>` : ""}
+                </div>
+            </div>
+        `;
+            mobileList.appendChild(card);
+        });
+    }
+
+    function applySortAndFilter() {
+        const q = document.getElementById("txSearch").value.toLowerCase();
+        const sort = document.getElementById("sortSelect").value;
+
+        let filtered = allRows.filter(r => (r.book_title || "").toLowerCase().includes(q));
+
+        if (sort === "date-desc") {
+            filtered.sort((a, b) => new Date(b.request_time) - new Date(a.request_time));
+        } else if (sort === "date-asc") {
+            filtered.sort((a, b) => new Date(a.request_time) - new Date(b.request_time));
+        } else if (sort === "az") {
+            filtered.sort((a, b) => (a.book_title || "").localeCompare(b.book_title || ""));
+        } else if (sort === "za") {
+            filtered.sort((a, b) => (b.book_title || "").localeCompare(a.book_title || ""));
+        }
+
+        renderRows(filtered);
+    }
+
+    function filterTable() {
+        applySortAndFilter();
+        const q = document.getElementById("txSearch").value.toLowerCase();
+        const filtered = allRows.filter(r => (r.book_title || "").toLowerCase().includes(q));
+        renderRows(filtered);
+    }
+
+    async function cancelRequest(requestId, status) {
+        const isAccepted = status === "Accepted";
+        const confirmMsg = isAccepted
+            ? "This book was already approved and set aside for you.\nAre you sure you want to cancel your Ready to Pick Up request?"
+            : "Cancel this request?";
+        if (!confirm(confirmMsg)) return;
+        const message = document.getElementById("req_message");
+        try {
+            const res  = await fetch(`${BASE}/requests/${requestId}`, {
+                method: "DELETE", headers: authHeaders()
+            });
+            const data = await res.json();
+            message.innerText = data.message || "";
+            message.style.color = res.ok ? "#4cff9f" : "#ff6b6b";
+            if (res.ok) loadMyRequests();
+        } catch (err) { message.innerText = "Cannot connect to server."; message.style.color = "#ff6b6b"; }
+    }
+
+    // ── Books cache (for accurate cover images) ──────────────────────────────
+    let booksCache = [];
+    async function fetchBooksCache() {
+        if (booksCache.length > 0) return;
+        try {
+            const res  = await fetch(`${BASE}/books`, { headers: authHeaders() });
+            const data = await res.json();
+            if (res.ok && Array.isArray(data)) booksCache = data;
+        } catch (err) {}
+    }
+
+    // ── Favorites Dropdown ────────────────────────────────────────────────────
+    async function loadFavoritesDropdown() {
+        const list = document.getElementById("favorites-list");
+        list.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">Loading...</p>`;
+        await fetchBooksCache();
+        try {
+            const res  = await fetch(`${BASE}/favorites`, { headers: authHeaders() });
+            const data = await res.json();
+            if (res.ok && Array.isArray(data) && data.length > 0) {
+                list.innerHTML = "";
+                data.forEach(f => {
+                    const book   = booksCache.find(b => b._id && b._id.toString() === f.mongo_id);
+                    const imgSrc = (book && book.image)
+                        ? book.image
+                        : `https://via.placeholder.com/65x87?text=📚`;
+                    const item = document.createElement("div");
+                    item.className = "favorite-item";
+                    item.innerHTML = `
+                    <img src="${imgSrc}"
+                         onerror="this.src='https://via.placeholder.com/65x87?text=📚'" alt="${f.title}">
+                    <div class="book-info">
+                        <h4>${f.title}</h4>
+                        <p>${f.author || ""}</p>
+                        <div class="book-actions">
+                            <button class="fav-borrow-btn" onclick="requestFromFav('${f.mongo_id}')">Borrow</button>
+                            <button class="remove-btn" onclick="event.stopPropagation();removeFav('${f.mongo_id}')">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                    list.appendChild(item);
+                });
+            } else {
+                list.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">No favorites yet.</p>`;
+            }
+        } catch (err) {
+            list.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">Could not load.</p>`;
+        }
+    }
+
+    async function requestFromFav(mongoId) {
+        try {
+            const res  = await fetch(`${BASE}/requests`, {
+                method: "POST", headers: authHeaders(),
+                body: JSON.stringify({ mongo_id: mongoId })
+            });
+            const data = await res.json();
+            alert(data.message || "Request submitted.");
+            if (res.ok) loadMyRequests();
+        } catch (err) { alert("Cannot connect."); }
+    }
+
+    async function removeFav(mongoId) {
+        try {
+            const res = await fetch(`${BASE}/favorites`, {
+                method: "POST", headers: authHeaders(),
+                body: JSON.stringify({ mongo_id: mongoId })
+            });
+            if (res.ok) renderFavoritesInPlace();
+        } catch (err) {}
+    }
+
+    async function renderFavoritesInPlace() {
+        const list = document.getElementById("favorites-list");
+        try {
+            const res  = await fetch(`${BASE}/favorites`, { headers: authHeaders() });
+            const data = await res.json();
+            list.innerHTML = "";
+            if (res.ok && Array.isArray(data) && data.length > 0) {
+                data.forEach(f => {
+                    const book   = booksCache.find(b => b._id && b._id.toString() === f.mongo_id);
+                    const imgSrc = (book && book.image)
+                        ? book.image
+                        : `https://via.placeholder.com/65x87?text=📚`;
+                    const item = document.createElement("div");
+                    item.className = "favorite-item";
+                    item.innerHTML = `
+                    <img src="${imgSrc}"
+                         onerror="this.src='https://via.placeholder.com/65x87?text=📚'" alt="${f.title}">
+                    <div class="book-info">
+                        <h4>${f.title}</h4>
+                        <p>${f.author || ""}</p>
+                        <div class="book-actions">
+                            <button class="fav-borrow-btn" onclick="requestFromFav('${f.mongo_id}')">Borrow</button>
+                            <button class="remove-btn" onclick="event.stopPropagation();removeFav('${f.mongo_id}')">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                    list.appendChild(item);
+                });
+            } else {
+                list.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">No favorites yet.</p>`;
+            }
+        } catch (err) {}
+    }
+
+    // ── Dropdown toggles ──────────────────────────────────────────────────────
+    const profileBtn        = document.getElementById('profileBtn');
+    const favoritesBtn      = document.getElementById('favoritesBtn');
+    const infoBtn           = document.getElementById('infoBtn');
+    const profileDropdown   = document.getElementById('profile-dropdown');
+    const favoritesDropdown = document.getElementById('favorites-dropdown');
+    const infoDropdown      = document.getElementById('info-dropdown');
+
+    function closeAllDropdowns() {
+        profileDropdown.classList.remove('active');
+        favoritesDropdown.classList.remove('active');
+        infoDropdown.classList.remove('active');
+    }
+    profileBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = profileDropdown.classList.contains('active');
+        closeAllDropdowns(); if (!isOpen) profileDropdown.classList.add('active');
+    });
+    favoritesBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = favoritesDropdown.classList.contains('active');
+        closeAllDropdowns(); if (!isOpen) { favoritesDropdown.classList.add('active'); loadFavoritesDropdown(); }
+    });
+    infoBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = infoDropdown.classList.contains('active');
+        closeAllDropdowns(); if (!isOpen) { infoDropdown.classList.add('active'); loadInfoSettings(); }
+    });
+    document.addEventListener('click', () => closeAllDropdowns());
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllDropdowns(); });
+
+    // ── Info / Settings ───────────────────────────────────────────────────────
+    async function loadInfoSettings() {
+        try {
+            const res  = await fetch(`${SERVER}/api/admin/logo`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.url) {
+                document.getElementById("info-logo").src = `${SERVER}${data.url}?t=${Date.now()}`;
+            }
+        } catch (err) {}
+    }
+
+    // ── Token validation ─────────────────────────────────────────────────────
+    async function validateToken() {
+        try {
+            const res = await fetch(`${BASE}/profile`, { headers: authHeaders() });
+            if (res.status === 401 || res.status === 403) {
+                localStorage.clear();
+                window.location.replace("/landingPage.html");
+                return false;
+            }
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById("student-name").innerText =
+                    `${data.lName}, ${data.fName}${data.mName ? " " + data.mName : ""}`;
+                document.getElementById("student-id").innerText = `ID: ${data.stu_id}`;
+                document.getElementById("student-year").innerText = data.yearAndSection || "—";
+                const badge = document.getElementById("student-status-badge");
+                const s = (data.status || "active").toLowerCase();
+                badge.innerText = s.toUpperCase();
+                badge.className = "profile-status " + (s === "hold" ? "hold" : "active");
+            }
+            return true;
+        } catch (err) { return true; }
+    }
+
+    async function loadProfile() {
+        await validateToken();
+    }
+
+    loadProfile();
+    loadMyRequests();
+</script>
+</body>
+</html>

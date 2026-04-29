@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Books Management - Grand University Library</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/AcssBook.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+</head>
+<body>
+<aside>
+    <section class="i-card">
+        <img src="LOGOFIN.png" alt="LOGO" class="logo">
+        <div class="inf"></div>
+    </section>
+    <nav class="nav">
+        <button onclick="goTo('BlibDash.html')">DASHBOARD</button>
+        <button class="active">BOOKS</button>
+        <button onclick="goTo('Bstudents.html')">STUDENTS</button>
+        <button onclick="goTo('Brequests.html')">REQUESTS</button>
+        <button onclick="goTo('BBB.html')">BORROWED BOOKS</button>
+        <div class="log">
+            <button onclick="logout()">LOG OUT</button>
+        </div>
+    </nav>
+</aside>
+
+<main>
+    <h1>Library Archive: Book Collection</h1>
+
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="searchInput"
+                   placeholder="Search title, author, ISBN, genre, publisher..."
+                   autocomplete="off" oninput="filterBooks()">
+            <i class="fa fa-search"></i>
+        </div>
+    </div>
+
+    <p id="tableMessage"></p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>ISBN / ID</th>
+                <th>Category</th>
+                <th>Genre</th>
+                <th>Publisher</th>
+                <th>Year</th>
+                <th>Total</th>
+                <th>Available</th>
+                <th>Date Added</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody id="booksTableBody"></tbody>
+        </table>
+    </div>
+</main>
+
+<div class="fab" onclick="openModal(null)">+</div>
+
+<div class="modal" id="modal">
+    <div class="modal-content">
+
+        <h3 id="modalTitle">Official Accession Record</h3>
+        <p id="modalMessage" class="modal-message"></p>
+        <input type="hidden" id="editBookMongoId">
+
+        <p class="form-section-label">Category</p>
+        <select id="f_category" onchange="populateGenreSelect(); toggleIsbnRequired()">
+            <option value="">-- Select Category --</option>
+            <option value="Academic">Academic</option>
+            <option value="Non-Academic">Non-Academic</option>
+        </select>
+
+        <p class="form-section-label">
+            ISBN <span id="isbnRequired"></span>
+        </p>
+        <div class="isbn-row">
+            <input type="text" id="f_isbn" placeholder="Enter or scan ISBN"
+                   autocomplete="off"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();lookupISBN();}">
+            <button type="button" class="secondary-btn" onclick="lookupISBN()">
+                <i class="fa fa-search"></i> Lookup
+            </button>
+            <button type="button" class="secondary-btn" id="scanBtn" onclick="toggleScanner()">
+                <i class="fa fa-camera"></i> Scan
+            </button>
+        </div>
+        <div id="scanner-container"></div>
+        <p id="isbn_status"></p>
+
+        <div class="image-preview" id="preview">Cover</div>
+        <input type="file" id="cover" accept="image/*" class="file-input">
+
+        <div class="form-grid">
+            <input type="text"   id="f_title"     placeholder="Title"            required>
+            <input type="text"   id="f_author"     placeholder="Author"           required>
+            <input type="text"   id="f_publisher"  placeholder="Publisher">
+            <input type="number" id="f_total"      placeholder="Total Copies">
+            <input type="number" id="f_available"  placeholder="Available Copies">
+            <input type="date"   id="f_year">
+            <select id="f_genre">
+                <option value="">-- Select Genre --</option>
+            </select>
+        </div>
+
+        <div class="modal-actions">
+            <button class="add-btn" onclick="submitBook()">Save Record</button>
+            <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+        </div>
+
+    </div>
+</div>
+
+<div id="scanOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);
+     justify-content:center;align-items:center;z-index:9999;">
+    <div style="background:#111;border:2px solid #c8a96a;border-radius:12px;padding:1.5rem;
+                width:min(360px,90vw);text-align:center;color:#f5f1e6;">
+        <h4 style="color:#c8a96a;margin-bottom:0.8rem;">📷 Scan ISBN Barcode</h4>
+        <div id="qr-reader"></div>
+        <p id="scanStatus" style="font-size:13px;color:#e6c88c;min-height:18px;margin:0.6rem 0;">
+            Initializing camera...
+        </p>
+        <button onclick="stopScanner()"
+                style="background:transparent;border:1px solid #c8a96a;color:#c8a96a;
+                       padding:6px 18px;cursor:pointer;border-radius:4px;">
+            ✕ Cancel
+        </button>
+    </div>
+</div>
+
+<script src="/librarian/script/book.js"></script>
+
+</body>
+</html>

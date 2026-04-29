@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Books' History - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/history.css">
+</head>
+
+<body>
+
+<aside>
+    <section class="i-card">
+        <img src="LOGOFIN.png" alt="LOGO" class="logo">
+        <div class="inf"></div>
+    </section>
+    <nav class="nav">
+        <button onclick="goTo('admin.html')">DASHBOARD</button>
+        <button onclick="goTo('adminBooks.html')">BOOKS</button>
+        <button onclick="goTo('membersPortal.html')">MEMBERS</button>
+        <button onclick="goTo('requests.html')">REQUESTS</button>
+        <button class="active">REPORTS</button>
+        <button onclick="goTo('settings.html')">SETTINGS</button>
+    </nav>
+</aside>
+
+<main>
+    <h1>Reports</h1>
+
+    <div class="top-bar">
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="txSearch"
+                       placeholder="Search..."
+                       autocomplete="off" oninput="renderLog()">
+                <i class="fa fa-search"></i>
+            </div>
+        </div>
+        <div class="bottom-controls">
+            <button class="refresh-btn" onclick="loadLog()">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            <select class="filter-select" id="categoryFilter" onchange="loadLog()">
+                <option value="books">Book Activity</option>
+                <option value="students">Students</option>
+                <option value="requests">Requests</option>
+            </select>
+            <label class="date-label">
+                From <input type="date" id="txDateFrom" onchange="renderLog()">
+            </label>
+            <label class="date-label">
+                To <input type="date" id="txDateTo" onchange="renderLog()">
+            </label>
+        </div>
+    </div>
+
+    <p id="history_message"></p>
+
+    <!-- ── BOOK ACTIVITY TABLE ── -->
+    <div id="tableBooks" class="table-container" style="display:none;">
+        <table>
+            <thead><tr>
+                <th>Action</th>
+                <th>Librarian ID / Admin</th>
+                <th>Updated</th>
+                <th>Book Title</th>
+                <th>Genre</th>
+                <th>Time Added</th>
+                <th>Time Updated</th>
+            </tr></thead>
+            <tbody id="bodyBooks"></tbody>
+        </table>
+    </div>
+
+    <!-- ── STUDENTS TABLE ── -->
+    <div id="tableStudents" class="table-container" style="display:none;">
+        <table>
+            <thead><tr>
+                <th>Action</th>
+                <th>Librarian ID / Admin</th>
+                <th>Updated</th>
+                <th>Student ID</th>
+                <th>Time Added</th>
+                <th>Time Updated</th>
+            </tr></thead>
+            <tbody id="bodyStudents"></tbody>
+        </table>
+    </div>
+
+    <!-- ── REQUESTS TABLE ── -->
+    <div id="tableRequests" class="table-container" style="display:none;">
+        <table>
+            <thead><tr>
+                <th>Action</th>
+                <th>Librarian ID</th>
+                <th>Book ID</th>
+                <th>Condition</th>
+                <th>Requested Time</th>
+                <th>Responded Time</th>
+                <th>Returned Time</th>
+            </tr></thead>
+            <tbody id="bodyRequests"></tbody>
+        </table>
+    </div>
+
+</main>
+
+<script>
+    //const ADMIN_BASE = "http://192.168.1.39:3000/api/admin";
+    //const ADMIN_BASE = "http://10.154.86.63:3000/api/admin";
+    const SERVER = window.location.origin;
+
+    const ADMIN_BASE = `${SERVER}/api/admin`;
+
+
+
+    function goTo(page) { window.location.href = page; }
+
+    let allLog     = [];
+    let curCategory = "books";
+
+    function fmt(d) { return d ? new Date(d).toLocaleString() : "—"; }
+
+    function hideAllTables() {
+        ["tableBooks","tableStudents","tableRequests"]
+            .forEach(id => document.getElementById(id).style.display = "none");
+    }
+
+    function showTable(category) {
+        hideAllTables();
+        const map = { books:"tableBooks", students:"tableStudents", requests:"tableRequests" };
+        const el  = document.getElementById(map[category]);
+        if (el) el.style.display = "";
+    }
+
+    async function loadLog() {
+        const message  = document.getElementById("history_message");
+        curCategory    = document.getElementById("categoryFilter").value;
+        message.innerText = "Loading...";
+        showTable(curCategory);
+
+        try {
+            const res  = await fetch(`${ADMIN_BASE}/activity-log?category=${curCategory}`);
+            const data = await res.json();
+            allLog = res.ok ? data : [];
+            renderLog();
+        } catch (err) { message.innerText = "Cannot connect to server..."; }
+    }
+
+    function applyDateFilter(entries, timeKey) {
+        const dateFrom = document.getElementById("txDateFrom").value;
+        const dateTo   = document.getElementById("txDateTo").value;
+        return entries.filter(e => {
+            const d = new Date(e[timeKey] || e.time_added || e.request_time);
+            const matchFrom = !dateFrom || d >= new Date(dateFrom);
+            const matchTo   = !dateTo   || d <= new Date(dateTo + "T23:59:59");
+            return matchFrom && matchTo;
+        });
+    }
+
+    function renderLog() {
+        const message = document.getElementById("history_message");
+        const search  = document.getElementById("txSearch").value.toLowerCase();
+
+        let filtered = allLog.filter(e => {
+            if (!search) return true;
+            return Object.values(e).some(v =>
+                String(v || "").toLowerCase().includes(search)
+            );
+        });
+
+        // Date filter — use the most relevant time field per category
+        const dateFrom = document.getElementById("txDateFrom").value;
+        const dateTo   = document.getElementById("txDateTo").value;
+        if (dateFrom || dateTo) {
+            filtered = filtered.filter(e => {
+                const refTime = e.time_updated || e.returned_time || e.responded_time
+                    || e.request_time || e.time_added;
+                const d = new Date(refTime);
+                const matchFrom = !dateFrom || d >= new Date(dateFrom);
+                const matchTo   = !dateTo   || d <= new Date(dateTo + "T23:59:59");
+                return matchFrom && matchTo;
+            });
+        }
+
+        if (filtered.length === 0) {
+            message.innerText = "No records match your filters.";
+        } else {
+            message.innerText = "";
+        }
+
+        if (curCategory === "books") {
+            const tbody = document.getElementById("bodyBooks");
+            tbody.innerHTML = "";
+            filtered.forEach(e => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td><strong>${e.action}</strong></td>
+                    <td>${e.lib_id || "ADMIN"}</td>
+                    <td>${e.updated || "—"}</td>
+                    <td>${e.book_title || "—"}</td>
+                    <td>${e.genre || "—"}</td>
+                    <td>${fmt(e.time_added)}</td>
+                    <td>${fmt(e.time_updated)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+        } else if (curCategory === "students") {
+            const tbody = document.getElementById("bodyStudents");
+            tbody.innerHTML = "";
+            filtered.forEach(e => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td><strong>${e.action}</strong></td>
+                    <td>${e.lib_id || "ADMIN"}</td>
+                    <td>${e.updated || "—"}</td>
+                    <td>${e.stu_id || "—"}</td>
+                    <td>${fmt(e.time_added)}</td>
+                    <td>${fmt(e.time_updated)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+        } else if (curCategory === "requests") {
+            const tbody = document.getElementById("bodyRequests");
+            tbody.innerHTML = "";
+            filtered.forEach(e => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td><strong>${e.action}</strong></td>
+                    <td>${e.lib_id || "—"}</td>
+                    <td>${e.book_id || "—"}</td>
+                    <td>${e.condition || "—"}</td>
+                    <td>${fmt(e.request_time)}</td>
+                    <td>${fmt(e.responded_time)}</td>
+                    <td>${fmt(e.returned_time)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    }
+
+    // Default: Book Activity on load
+    loadLog();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Portal</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="landingPage.css">
+</head>
+
+<body>
+<div class="card">
+    <div class="logo-container">
+        <img src="LOGOFIN.png" alt="Library Logo">
+    </div>
+    <div class="subtitle">Login as:</div>
+
+    <div class="roles">
+        <div class="role" onclick="goTo('index.html')">
+            <h3><i class="fa-solid fa-user-graduate"></i> Student</h3>
+        </div>
+
+        <div class="role" onclick="goTo('./librarian/html/loglib.html')">
+            <h3><i class="fa-solid fa-book-open-reader"></i> Librarian</h3>
+        </div>
+    </div>
+    <footer>© CCIT Library</footer>
+</div>
+
+<script>
+    function goTo(page) {
+        window.location.href = page;
+    }
+</script>
+</body>
+</html>

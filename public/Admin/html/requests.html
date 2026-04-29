@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borrowing Requests - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/requests.css">
+</head>
+
+<body>
+
+<aside>
+    <section class="i-card">
+        <img src="LOGOFIN.png" alt="LOGO" class="logo">
+        <div class="inf"></div>
+    </section>
+    <nav class="nav">
+        <button onclick="goTo('admin.html')">DASHBOARD</button>
+        <button onclick="goTo('adminBooks.html')">BOOKS</button>
+        <button onclick="goTo('membersPortal.html')">MEMBERS</button>
+        <button class="active">REQUESTS</button>
+        <button onclick="goTo('history.html')">REPORTS</button>
+        <button onclick="goTo('settings.html')">SETTINGS</button>
+    </nav>
+</aside>
+
+<main>
+
+    <h1>Pending Book Requests</h1>
+
+    <div class="top-bar">
+        <div class="search-container">
+            <div class="search-box">
+                <!-- Fixed: id was txSearch but JS read reqSearch — now both match -->
+                <input type="text" id="reqSearch"
+                       placeholder="Search student, book, or librarian..."
+                       autocomplete="off" oninput="renderRequests()">
+                <i class="fa fa-search"></i>
+            </div>
+        </div>
+        <div class="bottom-controls">
+            <button class="refresh-btn" onclick="loadRequests()">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            <!-- Fixed: id was txStatusFilter but JS read reqStatusFilter — now both match -->
+            <!-- Fixed: all statuses added including PickedUp, Returned, Lost, Cancelled -->
+            <select class="filter-select" id="reqStatusFilter" onchange="renderRequests()">
+                <option value="all">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Accepted">Accepted</option>
+                <option value="PickedUp">Picked Up</option>
+                <option value="Declined">Declined</option>
+                <option value="Returned">Returned</option>
+                <option value="Lost">Lost</option>
+
+            </select>
+        </div>
+    </div>
+
+    <p id="req_message"></p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+            <tr>
+                <th>Student Name</th>
+                <th>Student ID</th>
+                <th>Year &amp; Section</th>
+                <th>Book Title</th>
+                <th>Status</th>
+                <th>Condition</th>
+                <th>Librarian</th>
+                <th>Request Date</th>
+                <th>Responded At</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody id="requests-list"></tbody>
+        </table>
+    </div>
+
+    <div class="empty-state" id="empty-state">
+        No requests at this time.
+    </div>
+
+</main>
+
+<script>
+    const SERVER = window.location.origin;
+
+    const ADMIN_BASE = `${SERVER}/api/admin`;
+    const LIB_BASE   = `${SERVER}/api/librarians`;
+    //const ADMIN_BASE = "http://10.154.86.63:3000/api/admin";
+    //const LIB_BASE   = "http://10.154.86.63:3000/api/librarians";
+    //onst ADMIN_BASE = "http://192.168.1.39:3000/api/admin";
+    //const LIB_BASE   = "http://192.168.1.39:3000/api/librarians";
+
+    function goTo(page) { window.location.href = page; }
+    function jsonHeaders() { return {"Content-Type":"application/json"}; }
+
+    let allRequests = [];
+
+    const statusMap = {
+        Pending:   "Pending",
+        Accepted:  "Accepted",
+        PickedUp:  "Picked Up",
+        Declined:  "Declined",
+        Returned:  "Returned",
+        Lost:      "Lost",
+        Cancelled: "Cancelled",
+    };
+
+    async function loadRequests() {
+        const message = document.getElementById("req_message");
+        message.innerText = "Loading...";
+        try {
+            const res  = await fetch(`${ADMIN_BASE}/transactions`);
+            const data = await res.json();
+            allRequests = res.ok ? data : [];
+            renderRequests();
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    function renderRequests() {
+        const tbody   = document.getElementById("requests-list");
+        const message = document.getElementById("req_message");
+        const empty   = document.getElementById("empty-state");
+        // Fixed: reading reqSearch and reqStatusFilter (matching the HTML above)
+        const search  = document.getElementById("reqSearch").value.toLowerCase();
+        const statusF = document.getElementById("reqStatusFilter").value;
+        tbody.innerHTML = "";
+
+        let filtered = allRequests.filter(r => {
+            if (r.status === "Cancelled") return false;   // never show cancelled
+            const matchSearch = !search ||
+                (r.student_name||"").toLowerCase().includes(search) ||
+                (r.stu_id      ||"").toLowerCase().includes(search) ||
+                (r.book_title  ||"").toLowerCase().includes(search) ||
+                (r.responded_by_name||"").toLowerCase().includes(search);
+            const matchStatus = statusF === "all" || r.status === statusF;
+            return matchSearch && matchStatus;
+        });
+
+        if (filtered.length === 0) {
+            message.innerText = "No requests match your filters.";
+            empty.style.display = "block";
+            return;
+        }
+        message.innerText = "";
+        empty.style.display = "none";
+
+        filtered.forEach(req => {
+            const tr        = document.createElement("tr");
+            const isPending = req.status === "Pending";
+
+            tr.innerHTML = `
+                <td>${req.student_name || "—"}</td>
+                <td>${req.stu_id       || "—"}</td>
+                <td>${req.yearAndSection || "—"}</td>
+                <td>${req.book_title   || "—"}</td>
+                <td>${statusMap[req.status] || req.status}</td>
+                <td>${req.book_condition || "—"}</td>
+                <td>${req.responded_by_name || "—"}</td>
+                <td>${req.request_time ? new Date(req.request_time).toLocaleString() : "—"}</td>
+                <td>${req.responded_time ? new Date(req.responded_time).toLocaleString() : "—"}</td>
+
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function respond(requestId, status) {
+        const message = document.getElementById("req_message");
+        const label   = status === "Accepted" ? "accept" : "decline";
+        if (!confirm(`Are you sure you want to ${label} this request?`)) return;
+        try {
+            const res  = await fetch(`${LIB_BASE}/requests/${requestId}`, {
+                method: "PUT", headers: jsonHeaders(), body: JSON.stringify({ status })
+            });
+            const data = await res.json();
+            message.innerText = data.message || (res.ok ? "Done." : "Failed.");
+            if (res.ok) loadRequests();
+        } catch (err) { message.innerText = "Cannot connect to server."; }
+    }
+
+    loadRequests();
+</script>
+
+</body>
+</html>

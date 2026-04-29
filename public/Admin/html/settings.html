@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="settings.css">
+</head>
+
+<body>
+
+<aside>
+    <section class="id-card">
+        <img src="LOGOFIN.png" alt="LOGO" class="logo">
+        <div class="inf"></div>
+    </section>
+
+    <nav class="nav">
+        <button onclick="goTo('admin.html')">DASHBOARD</button>
+        <button onclick="goTo('adminBooks.html')">BOOKS</button>
+        <button onclick="goTo('membersPortal.html')">MEMBERS</button>
+        <button onclick="goTo('requests.html')">REQUESTS</button>
+        <button onclick="goTo('history.html')">REPORTS</button>
+        <button class="active">SETTINGS</button>
+    </nav>
+</aside>
+
+<main>
+    <h1>Settings</h1>
+
+    <div class="settings-card">
+        <section class="branding-section">
+            <h2>Student Interface Logo</h2>
+            <p class="section-desc">This logo appears on the student header and all student-facing pages.</p>
+
+            <div class="branding-content">
+
+                <!-- LIVE PREVIEW -->
+                <div class="preview-box">
+                    <img id="student-preview" src="loh.png" alt="Student Logo Preview"
+                         onerror="this.style.opacity='0.2'">
+                </div>
+
+                <!-- UPLOAD AREA -->
+                <div class="upload-area">
+                    <label for="student-logo-input" class="upload-btn">
+                        <i class="fa-solid fa-folder-open"></i> Choose Logo
+                    </label>
+                    <input type="file" id="student-logo-input" accept="image/*">
+                    <p id="file-name-display">No file chosen</p>
+                    <p class="upload-hint">PNG, JPG, SVG · Max 5 MB</p>
+                </div>
+
+            </div>
+
+            <p id="upload-message" class="upload-status"></p>
+
+            <div class="save-container">
+                <button class="save-btn" id="applyBtn" onclick="applyLogo()" disabled>
+                    <i class="fa-solid fa-floppy-disk"></i> Apply Changes
+                </button>
+            </div>
+        </section>
+    </div>
+</main>
+
+<script>
+    const SERVER     = window.location.origin;
+    const ADMIN_BASE = `${SERVER}/api/admin`;
+
+    function goTo(page) { window.location.href = page; }
+
+    let pendingFile = null;
+
+    // ── File chosen → show preview ────────────────────────────────────────────
+    document.getElementById("student-logo-input").addEventListener("change", function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            showMessage("Please select an image file.", "error"); return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            showMessage("File too large — max 5 MB.", "error"); return;
+        }
+
+        pendingFile = file;
+        const reader = new FileReader();
+        reader.onload = evt => {
+            document.getElementById("student-preview").src = evt.target.result;
+            document.getElementById("file-name-display").innerText = file.name;
+            document.getElementById("applyBtn").disabled = false;
+            showMessage("", "");
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // ── Send file as FormData to /api/admin/upload-logo ───────────────────────
+    async function applyLogo() {
+        if (!pendingFile) return;
+
+        const btn = document.getElementById("applyBtn");
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading...`;
+
+        try {
+            const formData = new FormData();
+            formData.append("logo", pendingFile);
+
+            const res  = await fetch(`${ADMIN_BASE}/upload-logo`, {
+                method: "POST",
+                body:   formData,         // no Content-Type header — browser sets it with boundary
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showMessage("✓ Logo updated! Student pages will show the new logo.", "success");
+                pendingFile = null;
+                document.getElementById("student-logo-input").value = "";
+                document.getElementById("file-name-display").innerText = "No file chosen";
+                // Refresh the preview from disk
+                if (data.url) {
+                    document.getElementById("student-preview").src = `${SERVER}${data.url}?t=${Date.now()}`;
+                }
+            } else {
+                showMessage(data.message || "Upload failed.", "error");
+            }
+        } catch (err) {
+            showMessage("Cannot connect to server.", "error");
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Apply Changes`;
+    }
+
+    function showMessage(text, type) {
+        const el = document.getElementById("upload-message");
+        el.innerText = text;
+        el.className = "upload-status " + (type === "success" ? "msg-success" : type === "error" ? "msg-error" : "");
+    }
+
+    // ── Load current logo from disk on page open ─────────────────────────────
+    (async function loadCurrentLogo() {
+        try {
+            const res  = await fetch(`${ADMIN_BASE}/logo`);
+            const data = await res.json();
+            if (data.url) {
+                document.getElementById("student-preview").src = `${SERVER}${data.url}?t=${Date.now()}`;
+                document.getElementById("student-preview").style.opacity = "1";
+            }
+        } catch (_) {}
+    })();
+</script>
+
+</body>
+</html>

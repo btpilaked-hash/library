@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Members' Portal - Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../css/membersPortal.css">
+</head>
+
+<body>
+
+<aside>
+    <section class="i-card">
+        <img src="LOGOFIN.png" alt="LOGO" class="logo">
+        <div class="inf"></div>
+    </section>
+    <nav class="nav">
+        <button onclick="goTo('admin.html')">DASHBOARD</button>
+        <button onclick="goTo('adminBooks.html')">BOOKS</button>
+        <button class="active">MEMBERS</button>
+        <button onclick="goTo('requests.html')">REQUESTS</button>
+        <button onclick="goTo('history.html')">REPORTS</button>
+        <button onclick="goTo('settings.html')">SETTINGS</button>
+    </nav>
+</aside>
+
+<main>
+    <header>
+        <h1>MEMBERS</h1>
+    </header>
+    <section class="dashboard" aria-label="Members Portal">
+
+        <div class="card" role="button" tabindex="0" onclick="goTo('studentMembers.html')">
+            <i class="fa-solid fa-book-open"></i>
+            <h2>STUDENTS</h2>
+        </div>
+
+        <div class="card" role="button" tabindex="0" onclick="goTo('librarianMembers.html')">
+            <i class="fa-solid fa-id-card"></i>
+            <h2>LIBRARIANS</h2>
+        </div>
+
+    </section>
+</main>
+
+<script>
+    function goTo(page) { window.location.href = page; }
+</script>
+
+</body>
+</html>

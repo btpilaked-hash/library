@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="student.css">
+</head>
+<body>
+
+<header>
+    <img src="luh.png" alt="LOGO" class="logo">
+    <div class="nav-actions">
+        <div class="favorites-btn" id="favoritesBtn" aria-label="Favorites" tabindex="0">
+            <i class="fa-regular fa-heart icon-btn"></i>
+        </div>
+        <div class="info-btn" id="infoBtn" aria-label="Info" tabindex="0">
+            <i class="fa-solid fa-circle-info"></i>
+        </div>
+        <div class="profile-btn" id="profileBtn" aria-label="Profile" tabindex="0">
+            <i class="fa-solid fa-user"></i>
+        </div>
+    </div>
+</header>
+
+<!-- FAVORITES DROPDOWN -->
+<div id="favorites-dropdown" aria-hidden="true">
+    <div class="dropdown-card">
+        <div class="favorites-header"><h3>Favorites</h3></div>
+        <div id="favorites-list">
+            <p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- INFO DROPDOWN -->
+<div id="info-dropdown" aria-hidden="true">
+    <div class="dropdown-card info-card">
+        <div class="info-header">
+            <img id="info-logo" src="luh.png" alt="College Logo" style="height:40px;width:auto;">
+            <h3 class="info-title" id="info-system-name">CCIT Library System</h3>
+        </div>
+        <div class="info-divider"></div>
+        <div class="info-body">
+            <h4>About the System</h4>
+            <p id="info-description">IBook is a highly efficient, user-friendly, and integrated library automation platform designed for the complete computerization of library operations for any academic institution. The system enables seamless handling of book cataloging, borrowing, user management, and activity tracking within a centralized platform.</p>
+        </div>
+    </div>
+</div>
+
+<!-- PROFILE DROPDOWN -->
+<div id="profile-dropdown" aria-hidden="true">
+    <div class="profdropdown-card">
+        <div class="profile-summary">
+            <div class="profile-avatar"><i class="fa-solid fa-user"></i></div>
+            <h3 id="student-name">—</h3>
+            <p id="student-id">ID: —</p>
+        </div>
+        <div class="profile-details">
+            <p><span>Year &amp; Section:</span> <span id="student-year">—</span></p>
+            <p><span>Status:</span> <span id="student-status-badge"></span></p>
+        </div>
+        <button class="dropdown-logout" onclick="logout()">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+    </div>
+</div>
+
+<main>
+    <section class="dashboard" aria-label="Student Dashboard Actions">
+        <div class="card" role="button" tabindex="0" onclick="goTo('studentBooks.html')">
+            <i class="fa-solid fa-book-open"></i>
+            <h2>BOOKS</h2>
+            <p>Browse the catalog and request books.</p>
+        </div>
+        <div class="card" role="button" tabindex="0" onclick="goTo('studentRequests.html')">
+            <i class="fa-solid fa-code-pull-request"></i>
+            <h2>REQUESTS</h2>
+            <p>Manage your book requests.</p>
+        </div>
+        <div class="card" role="button" tabindex="0" onclick="goTo('borrowings.html')">
+            <i class="fa-solid fa-id-card"></i>
+            <h2>ACTIVE BORROWINGS</h2>
+            <p>View your active borrow list.</p>
+        </div>
+        <div class="card" role="button" tabindex="0" onclick="goTo('myBorrowed.html')">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <h2>BORROWED HISTORY</h2>
+            <p>View your past borrowings.</p>
+        </div>
+    </section>
+</main>
+
+<script>
+    const SERVER = window.location.origin;
+    const BASE   = `${SERVER}/api/students`;
+    const RECOMMEND_BASE = `${SERVER}/api/recommend`;
+
+    const token = localStorage.getItem("token");
+    const role  = localStorage.getItem("role");
+
+
+
+    function authHeaders() {
+        return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+    }
+
+    function goTo(page) { window.location.href = page; }
+
+    function logout() {
+        localStorage.clear();
+        window.location.href = "/landingPage.html";
+    }
+
+
+
+    // ── Books cache (for accurate cover images) ──────────────────────────────
+    let booksCache = [];
+    async function fetchBooksCache() {
+        if (booksCache.length > 0) return;
+        try {
+            const res  = await fetch(`${BASE}/books`, { headers: authHeaders() });
+            const data = await res.json();
+            if (res.ok && Array.isArray(data)) booksCache = data;
+        } catch (err) {}
+    }
+
+    // ── Favorites ─────────────────────────────────────────────────────────────
+    async function loadFavoritesDropdown() {
+        const list = document.getElementById("favorites-list");
+        list.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">Loading...</p>`;
+        await fetchBooksCache();
+        try {
+            const res  = await fetch(`${BASE}/favorites`, { headers: authHeaders() });
+            const data = await res.json();
+            list.innerHTML = "";
+            if (res.ok && Array.isArray(data) && data.length > 0) {
+                data.forEach(f => {
+                    const book   = booksCache.find(b => b._id && b._id.toString() === f.mongo_id);
+                    const imgSrc = (book && book.image)
+                        ? book.image
+                        : `https://via.placeholder.com/65x87?text=📚`;
+                    const item = document.createElement("div");
+                    item.className = "favorite-item";
+                    item.innerHTML = `
+                    <img src="${imgSrc}"
+                         onerror="this.src='https://via.placeholder.com/65x87?text=📚'"
+                         alt="${f.title}">
+                    <div class="book-info">
+                        <h4>${f.title}</h4>
+                        <p>${f.author || ""}</p>
+                        <div class="book-actions">
+                            <button class="borrow-btn" onclick="requestBookByMongoId('${f.mongo_id}')">Borrow</button>
+                            <button class="remove-btn" onclick="event.stopPropagation();removeFavorite('${f.mongo_id}')">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                    list.appendChild(item);
+                });
+            } else {
+                list.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">No favorites yet.</p>`;
+            }
+        } catch (err) {
+            list.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">Could not load favorites.</p>`;
+        }
+    }
+
+    async function removeFavorite(mongoId) {
+        try {
+            const res = await fetch(`${BASE}/favorites`, {
+                method: "POST", headers: authHeaders(),
+                body: JSON.stringify({ mongo_id: mongoId })
+            });
+            if (res.ok) renderFavoritesInPlace();
+        } catch (err) {}
+    }
+
+    async function renderFavoritesInPlace() {
+        const list = document.getElementById("favorites-list");
+        try {
+            const res  = await fetch(`${BASE}/favorites`, { headers: authHeaders() });
+            const data = await res.json();
+            list.innerHTML = "";
+            if (res.ok && Array.isArray(data) && data.length > 0) {
+                data.forEach(f => {
+                    const book   = booksCache.find(b => b._id && b._id.toString() === f.mongo_id);
+                    const imgSrc = (book && book.image)
+                        ? book.image
+                        : `https://via.placeholder.com/65x87?text=📚`;
+                    const item = document.createElement("div");
+                    item.className = "favorite-item";
+                    item.innerHTML = `
+                    <img src="${imgSrc}"
+                         onerror="this.src='https://via.placeholder.com/65x87?text=📚'"
+                         alt="${f.title}">
+                    <div class="book-info">
+                        <h4>${f.title}</h4>
+                        <p>${f.author || ""}</p>
+                        <div class="book-actions">
+                            <button class="borrow-btn" onclick="requestBookByMongoId('${f.mongo_id}')">Borrow</button>
+                            <button class="remove-btn" onclick="event.stopPropagation();removeFavorite('${f.mongo_id}')">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                    list.appendChild(item);
+                });
+            } else {
+                list.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">No favorites yet.</p>`;
+            }
+        } catch (err) {}
+    }
+
+    async function requestBookByMongoId(mongoId) {
+        const message = document.getElementById("books_message");
+
+        // Double-check status at request time (in case it changed during the session)
+        if (studentStatus === "hold") {
+            message.innerText = "Your account is on hold. You cannot request books.";
+            message.style.color = "red";
+            return;
+        }
+
+        try {
+            const res  = await fetch(`${BASE}/requests`, {
+                method: "POST", headers: authHeaders(),
+                body: JSON.stringify({ mongo_id: mongoId  })
+            });
+            const data = await res.json();
+            message.innerText = data.message;
+            message.style.color = res.ok ? "green" : "red";
+            if (res.ok) { loadBooks(); loadMyRequests(); }
+        } catch (err) { message.innerText = "Cannot connect to server..."; }
+    }
+    async function loadBooks() {
+        const tbody   = document.getElementById("booksList");
+        const message = document.getElementById("books_message");
+        tbody.innerHTML = "";
+
+        // Keep the hold warning visible if on hold
+        if (studentStatus !== "hold") message.innerText = "";
+
+        const search   = document.getElementById("bookSearch").value.trim();
+        const category = document.getElementById("catFilter").value;
+        const genre    = document.getElementById("genreFilter").value;
+        const sort     = document.getElementById("sortBooks").value;
+        const params   = new URLSearchParams();
+        if (search)   params.append("search",   search);
+        if (category) params.append("category", category);
+        if (genre)    params.append("genre",    genre);
+
+        try {
+            const [booksRes, reqRes] = await Promise.all([
+                fetch(`${BASE}/books?${params.toString()}`, { headers: authHeaders() }),
+                fetch(`${BASE}/requests`,                   { headers: authHeaders() })
+            ]);
+
+            let books    = await booksRes.json();
+            const reqData = await reqRes.json();
+
+            if (sort === "title_asc")   books = books.sort((a,b)=>a.title.localeCompare(b.title));
+            if (sort === "title_desc")  books = books.sort((a,b)=>b.title.localeCompare(a.title));
+            if (sort === "author_asc")  books = books.sort((a,b)=>a.author.localeCompare(b.author));
+            if (sort === "avail_desc")  books = books.sort((a,b)=>b.available_copies-a.available_copies);
+
+            const requestedBooks = {};
+            if (reqRes.ok && Array.isArray(reqData)) {
+                reqData.forEach(r => {
+                    if (!requestedBooks[r.isbn] ||
+                        ["Pending","Accepted","PickedUp"].includes(r.status)) {
+                        requestedBooks[r.isbn] = { status: r.status, _id: r._id };
+                    }
+                });
+            }
+
+            if (booksRes.ok && books.length > 0) {
+                books.forEach(book => {
+                    const tr       = document.createElement("tr");
+                    const mongoId  = book._id.toString();
+                    const favLabel = isFavorite(mongoId) ? "★ Unfavorite" : "☆ Favorite";
+                    const req      = requestedBooks[book.isbn];
+                    const status   = req ? req.status : null;
+
+                    let requestCell;
+
+                    // ── If account is on hold — no request buttons at all ──────
+                    if (studentStatus === "hold") {
+                        requestCell = `<span style="color:red;">Account on hold</span>`;
+                    } else if (!status) {
+                        requestCell = book.available_copies > 0
+                            ? `<button onclick="requestBook('${mongoId}')">Request</button>`
+                            : `<span style="color:gray;">Unavailable</span>`;
+                    } else if (status === "Pending") {
+                        requestCell = `<span>Pending</span>
+                                       <button onclick="cancelRequest('${req._id}')">Cancel</button>`;
+                    } else if (status === "Accepted") {
+                        requestCell = `<span>Ready to Pick Up</span>`;
+                    } else if (status === "PickedUp") {
+                        requestCell = `<span>Return Soon</span>`;
+                    } else if (["Returned","Declined","Cancelled","Lost"].includes(status)) {
+                        requestCell = book.available_copies > 0
+                            ? `<span>${STATUS_MAP[status]}</span>
+                               <button onclick="requestBookByMongoId('${mongoId}')">Request Again</button>`
+                            : `<span>${STATUS_MAP[status]} — Unavailable</span>`;
+                    } else {
+                        requestCell = `<span>${status}</span>`;
+                    }
+
+                    tr.innerHTML = `
+                        <td>${book.title}</td>
+                        <td>${book.author}</td>
+                        <td>${book.category || "—"}</td>
+                        <td>${book.genre}</td>
+                        <td>${book.publisher}</td>
+                        <td>${book.available_copies}</td>
+                        <td><button onclick="toggleFavorite('${mongoId}')">${favLabel}</button></td>
+                        <td>${requestCell}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                if (studentStatus !== "hold") message.innerText = "";
+            } else {
+                if (studentStatus !== "hold") message.innerText = "No books found.";
+            }
+        } catch (err) {
+            if (studentStatus !== "hold") message.innerText = "Cannot connect to server.";
+        }
+    }
+
+    // ── Dropdown toggle logic ─────────────────────────────────────────────────
+    const profileBtn       = document.getElementById('profileBtn');
+    const favoritesBtn     = document.getElementById('favoritesBtn');
+    const infoBtn          = document.getElementById('infoBtn');
+    const profileDropdown  = document.getElementById('profile-dropdown');
+    const favoritesDropdown = document.getElementById('favorites-dropdown');
+    const infoDropdown     = document.getElementById('info-dropdown');
+
+    function closeAllDropdowns() {
+        profileDropdown.classList.remove('active');
+        favoritesDropdown.classList.remove('active');
+        infoDropdown.classList.remove('active');
+    }
+
+    profileBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = profileDropdown.classList.contains('active');
+        closeAllDropdowns();
+        if (!isOpen) profileDropdown.classList.add('active');
+    });
+
+    favoritesBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = favoritesDropdown.classList.contains('active');
+        closeAllDropdowns();
+        if (!isOpen) {
+            favoritesDropdown.classList.add('active');
+            loadFavoritesDropdown();
+        }
+    });
+
+    infoBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = infoDropdown.classList.contains('active');
+        closeAllDropdowns();
+        if (!isOpen) { infoDropdown.classList.add('active'); loadInfoSettings(); }
+    });
+
+    document.addEventListener('click', () => closeAllDropdowns());
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllDropdowns(); });
+
+    // ── Info / Settings ───────────────────────────────────────────────────────
+    async function loadInfoSettings() {
+        try {
+            const res  = await fetch(`${SERVER}/api/admin/logo`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.url) {
+                document.getElementById("info-logo").src = `${SERVER}${data.url}?t=${Date.now()}`;
+            }
+        } catch (err) {}
+    }
+
+    // ── Token validation ──────────────────────────────────────────────────────
+    async function validateToken() {
+        try {
+            const res = await fetch(`${BASE}/profile`, { headers: authHeaders() });
+            if (res.status === 401 || res.status === 403) {
+                localStorage.clear();
+                window.location.replace("/landingPage.html");
+                return false;
+            }
+            return true;
+        } catch (err) { return true; }
+    }
+
+    async function loadProfile() {
+        try {
+            const res  = await fetch(`${BASE}/profile`, { headers: authHeaders() });
+            if (res.status === 401 || res.status === 403) {
+                localStorage.clear();
+                window.location.replace("/landingPage.html");
+                return;
+            }
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById("student-name").innerText =
+                    `${data.lName}, ${data.fName}${data.mName ? " " + data.mName : ""}`;
+                document.getElementById("student-id").innerText = `ID: ${data.stu_id}`;
+                document.getElementById("student-year").innerText = data.yearAndSection || "—";
+                const badge = document.getElementById("student-status-badge");
+                const s = (data.status || "active").toLowerCase();
+                badge.innerText = s.toUpperCase();
+                badge.className = "profile-status " + (s === "hold" ? "hold" : "active");
+            }
+        } catch (err) {}
+    }
+
+    loadProfile();
+</script>
+</body>
+</html>

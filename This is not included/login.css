@@ -1,0 +1,209 @@
+:root {
+    --bg-main: #0f1a1a;
+    --bg-card: rgba(255, 255, 255, 0.05);
+    --gold: #c8a96a;
+    --gold-bright: #e6c88c;
+    --text-main: #f5f1e6;
+    --text-muted: #cfc7b0;
+    --glass-blur: blur(12px);
+    
+    }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* BODY */
+body{
+    height:100vh;
+    font-family:'Inter',sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    color:var(--text-main);
+
+    background:
+        radial-gradient(circle at center, rgba(15,26,26,0.4), rgba(8,18,18,0.95)),
+        linear-gradient(rgba(15, 26, 26, 0.85), rgba(15, 26, 26, 0.95)),
+        url('https://images.unsplash.com/photo-1521587760476-6c12a4b040da')
+        center/cover no-repeat;
+}
+
+/* LOGO CONTAINER */
+.logo-container{
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 15px auto;
+
+    border-radius: 50%;
+    padding: 8px;
+
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--gold);
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    box-shadow: 0 0 15px rgba(200,169,106,0.2);
+}
+
+/* LOGO IMAGE */
+.logo-container img{
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.logo-container:hover{
+    box-shadow: 0 0 25px rgba(200,169,106,0.5);
+    transform: scale(1.05);
+}
+
+.logo-container::after{
+    content:"";
+    display:block;
+    width:60%;
+    height:1px;
+    margin:10px auto 0;
+    background: linear-gradient(to right, transparent, var(--gold), transparent);
+}
+
+/* CARD */
+.card{
+    width:440px;
+    padding:40px;
+    border-radius:20px;
+
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(16px);
+
+    border: 1px solid rgba(200,169,106,0.4);
+
+    box-shadow:
+        0 0 40px rgba(0,0,0,0.6),
+        inset 0 0 40px rgba(200,169,106,0.05);
+
+    text-align:center;
+    position: relative;
+}
+
+/* GOLD TOP LINE */
+.card::before{
+    content:"";
+    position:absolute;
+    top:0;
+    left:50%;
+    transform:translateX(-50%);
+    width:80%;
+    height:2px;
+    background:linear-gradient(to right, transparent, var(--gold), transparent);
+}
+
+/* SUBTITLE */
+.subtitle{
+    font-size:0.9rem;
+    color:var(--text-muted);
+    font-style:italic;
+}
+
+@keyframes float{
+    0%,100%{ transform: translateY(0); }
+    50%{ transform: translateY(-8px); }
+}
+
+
+
+
+    .tabs {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+    
+    .tabs button {
+        flex: 1;
+        padding: 10px;
+        background: transparent;
+        border: none;
+        color: #ccc;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .tabs button.active {
+        border-bottom: 2px solid var(--gold-bright);
+        color: #fff;
+    }
+
+    form {
+        
+        display: none;
+        flex-direction: column;
+    }
+
+    form.active {
+        display: flex;
+    }
+
+    .active{
+        font-size:0.9rem;
+    color:var(--text-muted);
+    font-style:italic;
+    }
+
+    input {
+        margin-bottom: 12px;
+        padding: 17px;
+        border-radius: 8px;
+        border: none;
+        outline: none;
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+    }
+
+    input::placeholder {
+        color: #ccc;
+    }
+
+    .options {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        margin-bottom: 12px;
+    }
+
+    .options a {
+        color: #d4af37;
+        text-decoration: none;
+    }
+
+    button.submit {
+        padding: 10px;
+        border: none;
+        border-radius: 8px;
+        background: #1e3a34;
+        color: white;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    button.submit:hover {
+        background: var(--gold-bright);
+        color: black;
+        transform:scale(1.05);
+    }
+
+    .error {
+        font-size: 12px;
+        color: #ff6b6b;
+        margin-bottom: 10px;
+    }
+
+    @media (max-width: 400px) {
+        .card {
+            width: 90%;
+        }
+    }

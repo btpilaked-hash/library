@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Librarian Dashboard</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/AcssLib.css">
+</head>
+
+<body>
+<aside>
+    <section class="i-card">
+        <img src="LOGOFIN.png" alt="LOGO" class="logo">
+        <div class="inf"></div>
+    </section>
+
+    <nav class="nav">
+        <button class="active">DASHBOARD</button>
+        <button onclick="goTo('bbook.html')">BOOKS</button>
+        <button onclick="goTo('Bstudents.html')">STUDENTS</button>
+        <button onclick="goTo('Brequests.html')">REQUESTS</button>
+        <button onclick="goTo('BBB.html')">BORROWED BOOKS</button>
+        <div class="log">
+            <button onclick="logout()">LOG OUT</button>
+        </div>
+    </nav>
+</aside>
+
+<main>
+    <header>
+        <h1>WELCOME LIBRARIAN</h1>
+    </header>
+
+    <!-- Flip ID Card — profile loads from backend -->
+    <section class="id-card-container">
+        <div class="id-card-flip">
+
+            <!-- FRONT -->
+            <div class="card-face front">
+                <img src="LOGOFIN.png" alt="LOGO" class="lo">
+                <img alt="Librarian Profile" class="profile" id="profile-pic">
+                <h2 id="card-name">—</h2>
+                <p>Librarian</p>
+                <div class="details">
+                    <h7><strong>Office:</strong> CCIT Library</h7>
+                </div>
+            </div>
+
+            <!-- BACK -->
+            <div class="card-face back">
+                <img src="seal.png" alt="Seal" class="pro">
+                <h3>Credentials</h3>
+                <p><strong>ID No:</strong> <span id="card-lib-id">—</span></p>
+                <p><strong>Contact:</strong> <span id="card-contact">—</span></p>
+                <p><strong>Email:</strong> <span id="card-email">—</span></p>
+                <p><strong>Status:</strong> <span id="card-status">—</span></p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Dashboard Stats -->
+    <section class="dashboard-cards">
+        <div class="card">
+            <i class="fas fa-book"></i>
+            <h3>Total Books</h3>
+            <p id="stat-books">—</p>
+        </div>
+
+        <div class="card">
+            <i class="fas fa-user-graduate"></i>
+            <h3>Students</h3>
+            <p id="stat-students">—</p>
+        </div>
+
+        <div class="card">
+            <i class="fas fa-exchange-alt"></i>
+            <h3>Borrowed</h3>
+            <p id="stat-borrowed">—</p>
+        </div>
+
+        <div class="card">
+            <i class="fas fa-envelope"></i>
+            <h3>Pending Requests</h3>
+            <p id="stat-requests">—</p>
+        </div>
+    </section>
+</main>
+
+<script>
+    const SERVER = window.location.origin;
+    const LIB_BASE  = `${SERVER}/api/librarians`;
+    const BOOK_BASE = `${SERVER}/api/book`;
+    //const LIB_BASE  = "http://10.154.86.63:3000/api/librarians";
+    //const BOOK_BASE = "http://10.154.86.63:3000/api/book";
+    //const LIB_BASE  = "http://192.168.1.39:3000/api/librarians";
+    //const BOOK_BASE = "http://192.168.1.39:3000/api/book";
+    const token     = localStorage.getItem("token");
+    const role      = localStorage.getItem("role");
+
+    if (!token || role !== "librarian") {
+        localStorage.clear();
+        window.location.replace("/landingPage.html");
+    }
+
+    function goTo(page)  { window.location.href = page; }
+    function logout()    { localStorage.clear(); window.location.href = "/landingPage.html"; }
+    function jsonHeaders(){ return { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" }; }
+
+    async function loadProfile() {
+        try {
+            const res  = await fetch(`${LIB_BASE}/profile`, { headers: jsonHeaders() });
+            if (res.status === 401 || res.status === 403) {
+                localStorage.clear();
+                window.location.replace("/landingPage.html");
+                return;
+            }
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById("card-name").innerText    = `${data.lName}, ${data.fName} ${data.mName}`;
+                document.getElementById("card-lib-id").innerText  = data.lib_id;
+                document.getElementById("card-contact").innerText = data.cNumber;
+                document.getElementById("card-email").innerText   = data.unp_email;
+                document.getElementById("card-status").innerText  = data.status.toUpperCase();
+
+                // Show librarian's uploaded picture if available
+                const profileImg = document.getElementById("profile-pic");
+                if (profileImg) {
+                    if (data.picture) {
+                        profileImg.src              = `${SERVER}${data.picture}`;
+                        profileImg.style.display    = "block";
+                    } else {
+                        profileImg.src = "ben.jpg";
+                    }
+                }
+            }
+        } catch (err) { console.error("Profile fetch error:", err); }
+    }
+
+    async function loadStats() {
+        try {
+            const bRes  = await fetch(`${BOOK_BASE}/getBooks`);
+            const books = await bRes.json();
+            if (bRes.ok) document.getElementById("stat-books").innerText = books.length;
+
+            const sRes  = await fetch(`${LIB_BASE}/students`, { headers: jsonHeaders() });
+            const stus  = await sRes.json();
+            if (sRes.ok) document.getElementById("stat-students").innerText = stus.length;
+
+            const rRes  = await fetch(`${LIB_BASE}/requests`, { headers: jsonHeaders() });
+            const reqs  = await rRes.json();
+            if (rRes.ok) {
+                const pending  = reqs.filter(r => r.status === "Pending").length;
+                const borrowed = reqs.filter(r => r.status === "PickedUp").length;
+                document.getElementById("stat-requests").innerText = pending;
+                document.getElementById("stat-borrowed").innerText = borrowed;
+            }
+        } catch (err) { console.error("Stats fetch error:", err); }
+    }
+
+    loadProfile();
+    loadStats();
+</script>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Catalog</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="studentBooks.css">
+</head>
+<body>
+
+<header>
+    <img src="luh.png" alt="LOGO" class="logo">
+    <div class="nav-actions">
+        <div class="favorites-btn" id="favoritesBtn" aria-label="Favorites" tabindex="0">
+            <i class="fa-regular fa-heart icon-btn"></i>
+        </div>
+        <div class="info-btn" id="infoBtn" aria-label="Info" tabindex="0">
+            <i class="fa-solid fa-circle-info"></i>
+        </div>
+        <div class="profile-btn" id="profileBtn" aria-label="Profile" tabindex="0">
+            <i class="fa-solid fa-user"></i>
+        </div>
+    </div>
+</header>
+
+<!-- FAVORITES DROPDOWN -->
+<div id="favorites-dropdown" aria-hidden="true">
+    <div class="dropdown-card">
+        <div class="favorites-header"><h3>Favorites</h3></div>
+        <div id="favorites-list">
+            <p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- INFO DROPDOWN -->
+<div id="info-dropdown" aria-hidden="true">
+    <div class="dropdown-card info-card">
+        <div class="info-header">
+            <img id="info-logo" src="luh.png" alt="College Logo" style="height:40px;width:auto;">
+            <h3 class="info-title" id="info-system-name">CCIT Library System</h3>
+        </div>
+        <div class="info-divider"></div>
+        <div class="info-body">
+            <h4>About the System</h4>
+            <p id="info-description">IBook is a highly efficient, user-friendly, and integrated library automation platform designed for the complete computerization of library operations for any academic institution. The system enables seamless handling of book cataloging, borrowing, user management, and activity tracking within a centralized platform.</p>
+        </div>
+    </div>
+</div>
+
+<!-- PROFILE DROPDOWN -->
+<div id="profile-dropdown" aria-hidden="true">
+    <div class="profdropdown-card">
+        <div class="profile-summary">
+            <div class="profile-avatar"><i class="fa-solid fa-user"></i></div>
+            <h3 id="student-name">—</h3>
+            <p id="student-id">ID: —</p>
+        </div>
+        <div class="profile-details">
+            <p><span>Year &amp; Section:</span> <span id="student-year">—</span></p>
+            <p><span>Status:</span> <span id="student-status-badge"></span></p>
+        </div>
+        <button class="dropdown-logout" onclick="logout()">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+    </div>
+</div>
+
+<main id="content">
+    <!-- TOP BAR -->
+    <div class="top-bar">
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="txSearch" placeholder="Search title, author, genre, ISBN..."
+                       oninput="debounceSearch()">
+                <i class="fa fa-search"></i>
+            </div>
+        </div>
+        <div class="cat-filter-bar">
+            <button class="cat-btn active" id="btn-all"          onclick="setCat('')">All</button>
+            <button class="cat-btn"        id="btn-non-academic" onclick="setCat('Non-Academic')">Non-Academic</button>
+            <button class="cat-btn"        id="btn-academic"     onclick="setCat('Academic')">Academic</button>
+        </div>
+    </div>
+
+    <!-- Message area -->
+    <p id="books_message" style="text-align:center;margin:0.5rem auto;max-width:1300px;font-size:0.85rem;"></p>
+
+    <!-- RECOMMENDATION SECTION — always visible, skeletons replaced by real cards -->
+    <div id="recSection" class="book-section">
+        <h2 class="section-title">
+            Recommended For You
+        </h2>
+        <div class="carousel-wrapper">
+            <i class="fa-solid fa-chevron-left arrow left" id="rec-left"></i>
+            <div class="carousel" id="recCarousel">
+                <!-- skeleton placeholders — same size as real cards -->
+                <div class="book-card skeleton-card"></div>
+                <div class="book-card skeleton-card"></div>
+                <div class="book-card skeleton-card"></div>
+                <div class="book-card skeleton-card"></div>
+                <div class="book-card skeleton-card"></div>
+                <div class="book-card skeleton-card"></div>
+            </div>
+            <i class="fa-solid fa-chevron-right arrow right" id="rec-right"></i>
+        </div>
+    </div>
+
+    <!-- TRENDING SECTION — always visible, hidden only when truly no data -->
+    <div id="trendingSection" class="book-section">
+        <h2 class="section-title">
+            Trending Books
+        </h2>
+        <div class="carousel-wrapper">
+            <i class="fa-solid fa-chevron-left arrow left" id="trend-left"></i>
+            <div class="carousel" id="trendingCarousel">
+                <div class="book-card skeleton-card"></div>
+                <div class="book-card skeleton-card"></div>
+                <div class="book-card skeleton-card"></div>
+                <div class="book-card skeleton-card"></div>
+                <div class="book-card skeleton-card"></div>,m89;*
+                <div class="book-card skeleton-card"></div>
+            </div>
+            <i class="fa-solid fa-chevron-right arrow right" id="trend-right"></i>
+        </div>
+    </div>
+
+    <!-- GENRE SECTIONS injected by JS -->
+    <div id="genreSections"></div>
+</main>
+
+<script>
+    const SERVER         = window.location.origin;
+    const STU_BASE       = `${SERVER}/api/students`;
+    const BOOK_BASE      = `${SERVER}/api/book`;
+    const RECOMMEND_BASE = `${SERVER}/api/recommend`;
+    //const STU_BASE       = "http://10.154.86.63:3000/api/students";
+    //const BOOK_BASE      = "http://10.154.86.63:3000/api/book";
+    //const RECOMMEND_BASE = "http://localhost:5001";
+
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    const token = localStorage.getItem("token");
+    const role  = localStorage.getItem("role");
+    // stu_id is read server-side from the JWT token — no need to store it
+
+
+
+    function authHeaders() {
+        return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+    }
+    function logout() { localStorage.clear(); window.location.href = "/landingPage.html"; }
+
+    const STATUS_MAP = {
+        Pending:   "Pending",
+        Accepted:  "Ready to Pick Up",
+        PickedUp:  "Return Soon",
+        Declined:  "Declined",
+        Returned:  "Returned",
+        Lost:      "Lost",
+        Cancelled: "Cancelled",
+    };
+
+    const ACADEMIC_GENRES     = ["Theses", "Journal", "Research Book", "Text Book"];
+    const NON_ACADEMIC_GENRES = ["Fiction", "Mystery", "Horror", "Romance", "Adventure", "Historical"];
+    const ALL_GENRES          = [...NON_ACADEMIC_GENRES, ...ACADEMIC_GENRES];
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let currentCat     = "";
+    let studentStatus  = "active";
+    let allBooks       = [];   // full book objects from GET /api/book/getBooks
+    let requestedMap   = {};   // isbn  → { status, _id }
+    let favoritesCache = {};   // mongo_id → favObj
+    let isbnToMongoId  = {};   // isbn  → mongo_id  (built from allBooks; used for rec/trending)
+
+    // ── Profile ───────────────────────────────────────────────────────────────
+    // Route:  GET /api/students/profile
+    // Handler: studentControl.ownAccStu
+    let stuId = "";
+    async function loadProfile() {
+        try {
+            const res  = await fetch(`${STU_BASE}/profile`, { headers: authHeaders() });
+            if (res.status === 401 || res.status === 403) {
+                localStorage.clear();
+                window.location.replace("/landingPage.html");
+                return;
+            }
+            const data = await res.json();
+            if (res.ok) {
+                stuId = data.stu_id;
+                studentStatus = data.status || "active";
+                document.getElementById("student-name").innerText =
+                    `${data.lName}, ${data.fName}${data.mName ? " " + data.mName : ""}`;
+                document.getElementById("student-id").innerText   = `ID: ${data.stu_id}`;
+                document.getElementById("student-year").innerText = data.yearAndSection || "—";
+
+                const badge = document.getElementById("student-status-badge");
+                const s = studentStatus.toLowerCase();
+                badge.innerText = s.toUpperCase();
+                badge.className = "profile-status " + (s === "hold" ? "hold" : "active");
+
+                if (s === "hold") {
+                    const msg = document.getElementById("books_message");
+                    msg.innerText   = "Your account is on hold. You cannot request books until it is lifted.";
+                    msg.style.color = "#ff6b6b";
+                }
+            }
+        } catch (err) { console.error("Profile fetch error:", err); }
+    }
+
+    //Favorites cache
+    // Route:   GET /api/students/favorites
+    // Handler: studentControl.getFavorites
+    // Returns: array of { isbn, mongo_id, title, author, genre }
+    async function loadFavoritesCache() {
+        try {
+            const res  = await fetch(`${STU_BASE}/favorites`, { headers: authHeaders() });
+            const data = await res.json();
+            favoritesCache = {};
+            if (res.ok && Array.isArray(data)) {
+                data.forEach(f => { favoritesCache[f.mongo_id] = f; });
+            }
+        } catch (err) {}
+    }
+    function isFavorite(mongoId) { return !!favoritesCache[mongoId]; }
+
+    async function fetchAllBooks(search = "", cat = "") {
+        const params = new URLSearchParams();
+        if (search) params.append("search",   search);
+        if (cat)    params.append("category", cat);
+
+        try {
+            const [booksRes, reqRes] = await Promise.all([
+                fetch(`${STU_BASE}/books?${params}`, { headers: authHeaders() }),
+                fetch(`${STU_BASE}/requests`,        { headers: authHeaders() })
+            ]);
+
+            const booksData = await booksRes.json();
+            allBooks = (booksRes.ok && Array.isArray(booksData)) ? booksData : [];
+
+            isbnToMongoId = {};
+            allBooks.forEach(b => {
+                if (b.isbn && b._id) isbnToMongoId[b.isbn] = b._id.toString();
+            });
+
+            requestedMap = {};
+            const reqData = await reqRes.json();
+            if (reqRes.ok && Array.isArray(reqData)) {
+                reqData.forEach(r => {
+                    if (!requestedMap[r.isbn] ||
+                        ["Pending","Accepted","PickedUp"].includes(r.status)) {
+                        requestedMap[r.isbn] = { status: r.status, _id: r._id };
+                    }
+                });
+            }
+        } catch (err) { allBooks = []; }
+    }
+
+    function coverSrc(book) {
+        if (book && book.image) return book.image;
+        return `https://via.placeholder.com/148x196?text=${encodeURIComponent((book && book.title) || "Book")}`;
+    }
+
+    // Minimal XSS guard for text injected into innerHTML
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+            .replace(/>/g,"&gt;") .replace(/"/g,"&quot;");
+    }
+
+    // ── Build a carousel of book cards ────────────────────────────────────────
+    function buildCarousel(books, carouselEl) {
+        carouselEl.innerHTML = "";
+        books.forEach(book => {
+            // _id is the real MongoDB ObjectId from allBooks.
+            // For rec/trending we merge with local allBooks first, so _id should exist.
+            const mongoId = book._id ? book._id.toString() : "";
+            const isbn    = book.isbn || "";
+            const cover   = coverSrc(book);
+
+            const req    = requestedMap[isbn];
+            const status = req ? req.status : null;
+            const isFav  = isFavorite(mongoId);
+
+            let btnLabel    = "Request";
+            let btnDisabled = false;
+
+            if (studentStatus === "hold") {
+                btnLabel = "On Hold"; btnDisabled = true;
+            } else if (status === "Pending") {
+                btnLabel = "Pending"; btnDisabled = true;
+            } else if (status === "Accepted") {
+                btnLabel = "Pick Up"; btnDisabled = true;
+            } else if (status === "PickedUp") {
+                btnLabel = "Return Soon"; btnDisabled = true;
+            } else if (!status && Number(book.available_copies) < 1) {
+                btnLabel = "Unavailable"; btnDisabled = true;
+            } else if (["Returned","Declined","Cancelled","Lost"].includes(status)
+                && Number(book.available_copies) > 0) {
+                btnLabel = "Re-Request";
+            }
+
+            // Cannot request if we don't have a mongo_id to send
+            if (!mongoId) { btnLabel = "Unavailable"; btnDisabled = true; }
+
+            const card = document.createElement("div");
+            card.className = "book-card";
+            card.innerHTML = `
+            <img src="${cover}"
+                 onerror="this.src='https://via.placeholder.com/148x196?text=📚'"
+                 alt="${escHtml(book.title || "Book")}">
+            <div class="title">${escHtml(book.title || "Untitled")}</div>
+            <div class="author">${escHtml(book.author || "Unknown")}</div>
+            <div class="avail">Available: <span>${book.available_copies ?? "—"}</span></div>
+            <div class="actions">
+                <button class="borrow-btn-card" ${btnDisabled ? "disabled" : ""}
+                    onclick="requestBook('${mongoId}')">${btnLabel}</button>
+                <i class="fa-${isFav ? "solid" : "regular"} fa-heart heart ${isFav ? "active" : ""}"
+                   data-mongoid="${mongoId}"
+                   onclick="toggleFavorite('${mongoId}', this)"></i>
+            </div>
+        `;
+            carouselEl.appendChild(card);
+        });
+    }
+
+    // ── Render genre sections ─────────────────────────────────────────────────
+    function renderGenreSections() {
+        const container = document.getElementById("genreSections");
+        container.innerHTML = "";
+
+        let genres;
+        if      (currentCat === "Academic")     genres = ACADEMIC_GENRES;
+        else if (currentCat === "Non-Academic") genres = NON_ACADEMIC_GENRES;
+        else                                    genres = ALL_GENRES;
+
+        genres.forEach(genre => {
+            const booksForGenre = allBooks.filter(b =>
+                b.genre && b.genre.toLowerCase() === genre.toLowerCase()
+            );
+            if (booksForGenre.length === 0) return;
+
+            const section     = document.createElement("div");
+            section.className = "book-section";
+            const carouselId  = "carousel-" + genre.replace(/\s+/g, "-").toLowerCase();
+
+            section.innerHTML = `
+            <h2 class="section-title">${genre}</h2>
+            <div class="carousel-wrapper">
+                <i class="fa-solid fa-chevron-left arrow left"></i>
+                <div class="carousel" id="${carouselId}"></div>
+                <i class="fa-solid fa-chevron-right arrow right"></i>
+            </div>
+        `;
+            container.appendChild(section);
+
+            buildCarousel(booksForGenre, section.querySelector(".carousel"));
+
+            section.querySelectorAll(".arrow").forEach(arrow => {
+                arrow.addEventListener("click", () => {
+                    document.getElementById(carouselId)
+                        .scrollBy({ left: arrow.classList.contains("left") ? -320 : 320, behavior: "smooth" });
+                });
+            });
+        });
+    }
+
+    // ── Category filter ───────────────────────────────────────────────────────
+    function setCat(cat) {
+        currentCat = cat;
+        document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+        if      (cat === "")             document.getElementById("btn-all")         .classList.add("active");
+        else if (cat === "Academic")     document.getElementById("btn-academic")    .classList.add("active");
+        else if (cat === "Non-Academic") document.getElementById("btn-non-academic").classList.add("active");
+        refreshBooks();
+    }
+
+    let searchTimer = null;
+    function debounceSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => { refreshBooks(); loadRecommendations(); }, 450);
+    }
+
+    async function refreshBooks() {
+        const search = document.getElementById("txSearch").value.trim();
+        await fetchAllBooks(search, currentCat);
+        renderGenreSections();
+    }
+
+    // ── Request a book ────────────────────────────────────────────────────────
+    // Route:   POST /api/students/requests
+    // Handler: studentControl.requestBook
+    // Body:    { mongo_id }   ← controller reads req.body.mongo_id
+    async function requestBook(mongoId) {
+        const msg = document.getElementById("books_message");
+
+        if (studentStatus === "hold") {
+            msg.innerText   = "⚠️ Your account is on hold. You cannot request books.";
+            msg.style.color = "#ff6b6b";
+            return;
+        }
+        if (!mongoId) {
+            msg.innerText   = "Unable to request: book not found in catalog.";
+            msg.style.color = "#ff6b6b";
+            return;
+        }
+
+        try {
+            const res  = await fetch(`${STU_BASE}/requests`, {
+                method:  "POST",
+                headers: authHeaders(),
+                body:    JSON.stringify({ mongo_id: mongoId })  // ← matches controller
+            });
+            const data = await res.json();
+            msg.innerText   = data.message || (res.ok ? "Request submitted." : "Request failed.");
+            msg.style.color = res.ok ? "#4cff9f" : "#ff6b6b";
+            if (res.ok) {
+                await fetchAllBooks(document.getElementById("txSearch").value.trim(), currentCat);
+                renderGenreSections();
+                loadRecommendations();
+            }
+        } catch (err) {
+            msg.innerText   = "Cannot connect to server.";
+            msg.style.color = "#ff6b6b";
+        }
+    }
+
+    // ── Toggle Favorite ───────────────────────────────────────────────────────
+    // Route:   POST /api/students/favorites
+    // Handler: studentControl.toggleFavorite
+    // Body:    { mongo_id }   ← controller does Book.findById(mongo_id)
+    async function toggleFavorite(mongoId, heartEl) {
+        if (!mongoId) return;
+        try {
+            const res  = await fetch(`${STU_BASE}/favorites`, {
+                method:  "POST",
+                headers: authHeaders(),
+                body:    JSON.stringify({ mongo_id: mongoId })  // ← matches controller
+            });
+            const data = await res.json();
+            if (res.ok) {
+                // Rebuild cache from the returned favorites array
+                favoritesCache = {};
+                if (Array.isArray(data.favorites)) {
+                    data.favorites.forEach(f => { favoritesCache[f.mongo_id] = f; });
+                }
+                const nowFav = isFavorite(mongoId);
+                // Sync every heart across all carousels for this book
+                document.querySelectorAll(`[data-mongoid="${mongoId}"]`).forEach(el => {
+                    if (el.classList.contains("heart")) {
+                        el.classList.toggle("fa-solid",  nowFav);
+                        el.classList.toggle("fa-regular", !nowFav);
+                        el.classList.toggle("active",     nowFav);
+                    }
+                });
+                // Trigger recommendations immediately after any favorite action
+                loadRecommendations();
+            }
+        } catch (err) {}
+    }
+
+    // ── Favorites dropdown ────────────────────────────────────────────────────
+    async function loadFavoritesDropdown() {
+        const list = document.getElementById("favorites-list");
+        list.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">Loading...</p>`;
+        await loadFavoritesCache();
+        const keys = Object.keys(favoritesCache);
+        if (keys.length === 0) {
+            list.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;text-align:center;grid-column:1/-1;padding:1rem;">No favorites yet.</p>`;
+            return;
+        }
+        list.innerHTML = "";
+        keys.forEach(mongoId => {
+            const f    = favoritesCache[mongoId];
+            // Try to get the server-stored image from the local allBooks cache
+            const book = allBooks.find(b => b._id && b._id.toString() === mongoId);
+            const imgSrc = (book && book.image)
+                ? book.image
+                : `https://via.placeholder.com/65x87?text=📚`;
+
+            const item = document.createElement("div");
+            item.className = "favorite-item";
+            item.innerHTML = `
+            <img src="${imgSrc}" onerror="this.src='https://via.placeholder.com/65x87?text=📚'"
+                 alt="${escHtml(f.title)}">
+            <div class="book-info">
+                <h4>${escHtml(f.title)}</h4>
+                <p>${escHtml(f.author || "")}</p>
+                <div class="book-actions">
+                    <button class="fav-borrow-btn" onclick="requestBook('${mongoId}')">Borrow</button>
+                    <button class="remove-btn" onclick="removeFavoriteAndRefresh('${mongoId}')">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+            list.appendChild(item);
+        });
+    }
+
+    async function removeFavoriteAndRefresh(mongoId) {
+        await toggleFavorite(mongoId, null);
+        loadFavoritesDropdown();
+    }
+
+    // ── Recommendations ───────────────────────────────────────────────────────
+    // Route:   GET /api/recommend?q=<search>
+    // Requires: Bearer token (student role)
+    // Returns: { recommendations: [ <full Book mongoose doc> ] }
+    // The Node controller already returns full book objects with _id and image,
+    // so we merge with allBooks only to pick up live available_copies.
+    async function loadRecommendations() {
+        const section  = document.getElementById("recSection");
+        const carousel = document.getElementById("recCarousel");
+        if (carousel.children.length === 0 || carousel.querySelector(".skeleton-card")) {
+            carousel.innerHTML = Array(6).fill('<div class="book-card skeleton-card"></div>').join("");
+        }
+        section.style.display = "";
+        try {
+            const q   = encodeURIComponent(document.getElementById("txSearch").value.trim());
+            // Auth header required — /api/recommend uses authenticate + requireRole("student")
+            const res  = await fetch(`${RECOMMEND_BASE}?q=${q}`, { headers: authHeaders() });
+            if (!res.ok) { section.style.display = "none"; return; }
+            const data = await res.json();
+
+            if (data.recommendations && data.recommendations.length > 0) {
+                // Controller returns full Mongoose docs; merge with allBooks for
+                // up-to-date available_copies (recommender query may be slightly stale)
+                const recBooks = data.recommendations.map(r => {
+                    const local = allBooks.find(b => b.isbn === r.isbn);
+                    return local || r;   // local has freshest copy count; fallback to raw doc
+                });
+                buildCarousel(recBooks, carousel);
+                section.style.display = "";
+            } else {
+                section.style.display = "none";
+            }
+        } catch (err) {
+            console.error("Recommendation error:", err);
+        }
+    }
+
+    // ── Trending ──────────────────────────────────────────────────────────────
+    // Route:   GET /api/recommend/trending  (no auth required)
+    // Returns: { trending: [ <full Book mongoose doc> ] }
+    async function loadTrending() {
+        const section  = document.getElementById("trendingSection");
+        const carousel = document.getElementById("trendingCarousel");
+        if (carousel.children.length === 0 || carousel.querySelector(".skeleton-card")) {
+            carousel.innerHTML = Array(6).fill('<div class="book-card skeleton-card"></div>').join("");
+        }
+        section.style.display = "";
+        try {
+            const res  = await fetch(`${RECOMMEND_BASE}/trending`);
+            if (!res.ok) { section.style.display = "none"; return; }
+            const data = await res.json();
+
+            if (data.trending && data.trending.length > 0) {
+                // Controller returns full Mongoose docs; merge with allBooks for
+                // up-to-date available_copies
+                const trendBooks = data.trending.map(r => {
+                    const local = allBooks.find(b => b.isbn === r.isbn);
+                    return local || r;
+                });
+                buildCarousel(trendBooks, carousel);
+                section.style.display = "";
+            } else {
+                section.style.display = "none";
+            }
+        } catch (err) {
+            console.error("Trending error:", err);
+        }
+    }
+
+    document.getElementById("rec-left")   .addEventListener("click", () => document.getElementById("recCarousel")     .scrollBy({ left: -320, behavior: "smooth" }));
+    document.getElementById("rec-right")  .addEventListener("click", () => document.getElementById("recCarousel")     .scrollBy({ left:  320, behavior: "smooth" }));
+    document.getElementById("trend-left") .addEventListener("click", () => document.getElementById("trendingCarousel").scrollBy({ left: -320, behavior: "smooth" }));
+    document.getElementById("trend-right").addEventListener("click", () => document.getElementById("trendingCarousel").scrollBy({ left:  320, behavior: "smooth" }));
+
+    const profileBtn        = document.getElementById('profileBtn');
+    const favoritesBtn      = document.getElementById('favoritesBtn');
+    const infoBtn           = document.getElementById('infoBtn');
+    const profileDropdown   = document.getElementById('profile-dropdown');
+    const favoritesDropdown = document.getElementById('favorites-dropdown');
+    const infoDropdown      = document.getElementById('info-dropdown');
+
+    function closeAllDropdowns() {
+        profileDropdown  .classList.remove('active');
+        favoritesDropdown.classList.remove('active');
+        infoDropdown     .classList.remove('active');
+    }
+    profileBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = profileDropdown.classList.contains('active');
+        closeAllDropdowns();
+        if (!isOpen) profileDropdown.classList.add('active');
+    });
+    favoritesBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = favoritesDropdown.classList.contains('active');
+        closeAllDropdowns();
+        if (!isOpen) { favoritesDropdown.classList.add('active'); loadFavoritesDropdown(); }
+    });
+    infoBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = infoDropdown.classList.contains('active');
+        closeAllDropdowns();
+        if (!isOpen) { infoDropdown.classList.add('active'); loadInfoSettings(); }
+    });
+    document.addEventListener('click',   ()  => closeAllDropdowns());
+    document.addEventListener('keydown', e   => { if (e.key === 'Escape') closeAllDropdowns(); });
+
+    // ── Info / Settings ───────────────────────────────────────────────────────
+    async function loadInfoSettings() {
+        try {
+            const res  = await fetch(`${SERVER}/api/admin/logo`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.url) {
+                document.getElementById("info-logo").src = `${SERVER}${data.url}?t=${Date.now()}`;
+            }
+        } catch (err) {}
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    (async () => {
+        await loadProfile();
+        await loadFavoritesCache();
+        await fetchAllBooks("", "");
+        renderGenreSections();
+
+        await loadRecommendations();
+        await loadTrending();
+    })();
+</script>
+</body>
+</html>

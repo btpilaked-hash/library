@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCIT Library</title>
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="login.css">
+</head>
+
+<body>
+
+<div class="card">
+    <div class="logo-container">
+    <img src="gold.png" alt="Library Logo">
+    </div>
+    <form id="loginForm" class="active"></form>
+    <div class="subtitle">Sign in</div>
+        <div class="tabs">
+            <button  id="loginTab" class="active"></button>
+        </div>
+
+        <!-- login Form -->
+        <form id="loginForm" class="active">
+            <input type="text" id="studentID" placeholder="Student ID" required>
+            <input type="password" id="loginPassword" placeholder="Password" required>
+
+            <div class="options">
+                <label><input type="checkbox"> Remember Me</label>
+            </div>
+
+            <div class="error" id="loginError"></div>
+
+            <button type="submit" class="submit">Login</button>
+        </form>
+
+
+</div>
+</body>
+</html>
