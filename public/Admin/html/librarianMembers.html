@@ -58,6 +58,7 @@
             <table>
                 <thead>
                 <tr>
+                    <th>Photo</th>
                     <th>Librarian ID</th>
                     <th>Last Name</th>
                     <th>First Name</th>
@@ -199,6 +200,9 @@
             const tr     = document.createElement("tr");
             const isHold = lib.status === "hold";
             tr.innerHTML = `
+                <td>
+                    <button class="btn-show" onclick="showImg('${lib.picture || ''}', '${lib.lName}, ${lib.fName}')">Show</button>
+                </td>
                 <td>${lib.lib_id}</td>
                 <td>${lib.lName}</td>
                 <td>${lib.fName}</td>
@@ -208,13 +212,13 @@
                 <td><strong style="color:${isHold?"red":"green"}">${lib.status.toUpperCase()}</strong></td>
                 <td>${lib.pin || "—"}</td>
                 <td class="action-buttons">
-                    <button class="btn-edit"  onclick='openEditLibModal(${JSON.stringify(lib)})'>
+                    <button class="btn-edit" onclick='openEditLibModal(${JSON.stringify(lib)})'>
                     <i class="fa-solid fa-pen"></i> Edit</button>${isHold
-                ? `<button class="btn-unhold" onclick="setStatus('${lib._id}','active')">
+                            ? `<button class="btn-unhold" onclick="setStatus('${lib._id}','active')">
                     <i class="fa-solid fa-lock-open"></i> Unhold</button>`
-                : `<button class="btn-hold" onclick="setStatus('${lib._id}','hold')">
+                            : `<button class="btn-hold" onclick="setStatus('${lib._id}','hold')">
                     <i class="fa-solid fa-lock"></i> Hold</button>`}
-                    <button class="btn-delete" onclick="deleteLibrarian('${lib._id}')"<i class="fa-solid fa-trash"></i> Delete</button>
+                    <button class="btn-delete" onclick="deleteLibrarian('${lib._id}')"><i class="fa-solid fa-trash"></i> Delete</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -311,7 +315,26 @@
             if (res.ok) { closeEditLibModal(); loadLibrarians(); }
         } catch (err) { message.innerText = "Cannot connect to server."; }
     }
+    function showImg(url, name) {
+        document.getElementById("popupImg").src = url;
+        document.getElementById("popupTitle").innerText = name;
+        document.getElementById("imgPopup").classList.add("active");
+    }
+    function closeImgPopup() {
+        document.getElementById("imgPopup").classList.remove("active");
+    }
+    document.getElementById("imgPopup").addEventListener("click", function(e) {
+        if (e.target === this) closeImgPopup();
+    });
 </script>
+<!-- IMAGE POPUP -->
+<div class="img-popup-overlay" id="imgPopup">
+    <div class="img-popup-box">
+        <img id="popupImg" src="" alt="Librarian Photo">
+        <p id="popupTitle"></p>
+        <button class="img-popup-close" onclick="closeImgPopup()">Close</button>
+    </div>
+</div>
 
 </body>
 </html>
