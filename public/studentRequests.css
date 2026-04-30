@@ -254,7 +254,7 @@ tbody tr:hover { background: rgba(200,169,106,0.07); }
     #info-dropdown { right: 0.5rem; left: 0.5rem; }
     #info-dropdown .dropdown-card { width: 100%; }
 }
-@media (max-width: 500px) {
+@media (max-width: 700px) {
     .top-bar{
         gap: 1rem;
     }
