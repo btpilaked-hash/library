@@ -260,7 +260,7 @@ tbody tr:hover { background: rgba(200,169,106,0.07); }
     .mobile-borrowings-list {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: 2.5rem;
         width: 100%;
     }
 
