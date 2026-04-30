@@ -87,9 +87,9 @@ function renderBorrowedBooks() {
         }
 
         tr.innerHTML = `
-                <td>${item.student_name || "-"}</td>
+                <td title="${item.student_name || ""}">${item.student_name || "-"}</td>
                 <td>${item.stu_id || "-"}</td>
-                <td>${item.book_title || "-"}</td>
+                <td title="${item.book_title || ""}">${item.book_title || "-"}</td>
                 <td>${STATUS_MAP[item.status] || item.status || "-"}</td>
                 <td>${item.book_condition || "-"}</td>
                 <td>${item.request_time ? new Date(item.request_time).toLocaleString() : "-"}</td>

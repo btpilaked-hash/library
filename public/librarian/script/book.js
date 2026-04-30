@@ -370,12 +370,15 @@ function filterBooks() {
         const year  = book.publish_year ? new Date(book.publish_year).getFullYear() : "—";
         const added = book.createdAt    ? new Date(book.createdAt).toLocaleDateString() : "—";
         tr.innerHTML = `
-            <td>${book.title}</td>
-            <td>${book.author}</td>
+            <td>
+                <button class="btn-show" onclick="showImg('${book.image}', '${(book.title||'').replace(/'/g,"\\'")}')">Show</button>
+            </td>
+            <td title="${book.title || ""}">${book.title}</td>
+            <td title="${book.author || ""}">${book.author}</td>
             <td>${book.isbn || "—"}</td>
             <td>${book.category || "—"}</td>
             <td>${book.genre || "—"}</td>
-            <td>${book.publisher}</td>
+            <td title="${book.publisher || ""}">${book.publisher}</td>
             <td>${year}</td>
             <td>${book.total_copies}</td>
             <td>${book.available_copies}</td>
@@ -391,4 +394,16 @@ function filterBooks() {
         tbody.appendChild(tr);
     });
 }
+function showImg(url, title) {
+    document.getElementById("popupImg").src = url;
+    document.getElementById("popupTitle").innerText = title;
+    document.getElementById("imgPopup").classList.add("active");
+}
+function closeImgPopup() {
+    document.getElementById("imgPopup").classList.remove("active");
+}
+document.getElementById("imgPopup").addEventListener("click", function(e) {
+    if (e.target === this) closeImgPopup();
+});
+
 loadBooks();

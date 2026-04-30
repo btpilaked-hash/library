@@ -47,6 +47,7 @@
         <table>
             <thead>
             <tr>
+                <th></th>
                 <th>Title</th>
                 <th>Author</th>
                 <th>ISBN / ID</th>
@@ -139,6 +140,13 @@
 </div>
 
 <script src="/librarian/script/book.js"></script>
-
+<!-- IMAGE POPUP -->
+<div class="img-popup-overlay" id="imgPopup">
+    <div class="img-popup-box">
+        <img id="popupImg" src="" alt="Book Cover">
+        <p id="popupTitle"></p>
+        <button class="img-popup-close" onclick="closeImgPopup()">Close</button>
+    </div>
+</div>
 </body>
 </html>

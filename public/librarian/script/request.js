@@ -62,10 +62,10 @@ function renderRequests() {
     filtered.forEach(req => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-                <td>${req.student_name || "—"}</td>
+                <td title="${req.student_name || ""}">${req.student_name || "—"}</td>
                 <td>${req.stu_id       || "—"}</td>
                 <td>${req.yearAndSection || "—"}</td>
-                <td>${req.book_title   || "—"}</td>
+                <td title="${req.book_title || ""}">${req.book_title || "—"}</td>
                 <td>${req.isbn         || "—"}</td>
                 <td>${req.request_time ? new Date(req.request_time).toLocaleString() : "—"}</td>
                 <td>

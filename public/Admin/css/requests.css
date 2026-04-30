@@ -325,7 +325,12 @@ thead{
     background:var(--gold);
     color:var(--navy);
 }
-
+td{
+    height: 4rem;
+}
+td{
+    height:3rem;
+}
 th, td{
     padding:0.8rem;
     text-align:left;
@@ -488,7 +493,7 @@ td[title]:hover::after {
     white-space: normal;
     max-width: 250px;
     z-index: 9999;
-    margin-top: -30px;
+    top: 0;
     left: 0;
     word-break: break-word;
 }

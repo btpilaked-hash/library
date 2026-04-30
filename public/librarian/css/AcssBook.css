@@ -486,6 +486,12 @@ tbody tr{
     }
     .search-box{width:90%}
 }
+td{
+    height: 4rem;
+}
+th{
+    height:3rem;
+}
 th, td { text-align: center !important; vertical-align: middle; }
 
 .isbn-row { display:flex; gap:6px; align-items:center; margin-top:6px; }
@@ -508,4 +514,31 @@ th, td { text-align: center !important; vertical-align: middle; }
 .modal-content input{
     color: #000;
 }
+/* ===== TRUNCATE + TOOLTIP ===== */
+th, td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+    padding: 0.8rem;
+    text-align: center !important;
+}
 
+td { position: relative; }
+
+td[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    background: #0f1a1a;
+    color: #e6c88c;
+    border: 1px solid #c8a96a;
+    padding: 0.4rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    white-space: normal;
+    max-width: 250px;
+    z-index: 9999;
+    top: 0;
+    left: 0;
+    word-break: break-word;
+}

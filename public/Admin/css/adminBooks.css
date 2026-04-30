@@ -529,7 +529,12 @@ table {
     min-width: 600px;
     table-layout: fixed;
 }
-
+td{
+    height: 5rem;
+}
+th{
+    height: 3rem;
+}
 th, td {
     white-space: nowrap;
     overflow: hidden;
@@ -552,11 +557,11 @@ td[title]:hover::after {
     border: 1px solid #c8a96a;
     padding: 0.4rem 0.7rem;
     border-radius: 6px;
-    font-size: 0.90rem;
+    font-size: 0.78rem;
     white-space: normal;
     max-width: 250px;
     z-index: 9999;
-    margin-top: -30px;
+    top: 0;
     left: 0;
     word-break: break-word;
 }
