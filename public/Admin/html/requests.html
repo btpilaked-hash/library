@@ -62,18 +62,16 @@
     <p id="req_message"></p>
 
     <div class="table-container">
-        <table>
+        <table id="requests-table">
             <thead>
             <tr>
-                <th>Student Name</th>
                 <th>Student ID</th>
-                <th>Year &amp; Section</th>
                 <th>Book Title</th>
                 <th>Status</th>
                 <th>Condition</th>
-                <th>Librarian</th>
                 <th>Request Date</th>
                 <th>Responded At</th>
+                <th>Responded by:</th>
                 <th>Action</th>
             </tr>
             </thead>
@@ -156,16 +154,27 @@
             const isPending = req.status === "Pending";
 
             tr.innerHTML = `
-                <td>${req.student_name || "—"}</td>
-                <td>${req.stu_id       || "—"}</td>
-                <td>${req.yearAndSection || "—"}</td>
-                <td>${req.book_title   || "—"}</td>
+                <td title="${req.stu_id || ''}">${req.stu_id || "—"}</td>
+                <td title="${req.book_title || ''}">${req.book_title || "—"}</td>
                 <td>${statusMap[req.status] || req.status}</td>
                 <td>${req.book_condition || "—"}</td>
-                <td>${req.responded_by_name || "—"}</td>
                 <td>${req.request_time ? new Date(req.request_time).toLocaleString() : "—"}</td>
                 <td>${req.responded_time ? new Date(req.responded_time).toLocaleString() : "—"}</td>
-
+                <td>${req.responded_by_id === "admin" || req.responded_by_name === "Admin"
+                                    ? "ADMIN"
+                            : req.responded_by_id || "—"}</td>
+                <td>
+                    <div class="actions">
+                        ${req.status === "Pending" ? `
+                            <button class="btn-accept" onclick="respond('${req._id}', 'Accepted')">
+                                <i class="fa fa-check"></i> Accept
+                            </button>
+                            <button class="btn-decline" onclick="respond('${req._id}', 'Declined')">
+                                <i class="fa fa-times"></i> Decline
+                            </button>
+                        ` : "—"}
+                    </div>
+                </td>
             `;
             tbody.appendChild(tr);
         });

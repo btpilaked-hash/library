@@ -62,7 +62,7 @@
     <div id="tableBooks" class="table-container" style="display:none;">
         <table>
             <thead><tr>
-                <th>Action</th>
+                <th>Activity</th>
                 <th>Librarian ID / Admin</th>
                 <th>Updated</th>
                 <th>Book Title</th>
@@ -200,7 +200,7 @@
                     <td><strong>${e.action}</strong></td>
                     <td>${e.lib_id || "ADMIN"}</td>
                     <td>${e.updated || "—"}</td>
-                    <td>${e.book_title || "—"}</td>
+                    <td title="${e.book_title || ""}">${e.book_title || "—"}</td>
                     <td>${e.genre || "—"}</td>
                     <td>${fmt(e.time_added)}</td>
                     <td>${fmt(e.time_updated)}</td>

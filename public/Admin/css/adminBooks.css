@@ -552,7 +552,7 @@ td[title]:hover::after {
     border: 1px solid #c8a96a;
     padding: 0.4rem 0.7rem;
     border-radius: 6px;
-    font-size: 0.78rem;
+    font-size: 0.90rem;
     white-space: normal;
     max-width: 250px;
     z-index: 9999;
@@ -616,3 +616,43 @@ td[title] { position: relative; cursor: default; }
     cursor: pointer;
 }
 .img-popup-close:hover { background: #c8a96a; color: #0f1a1a; }
+
+.actions{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.btn-decline{
+    opacity: 0.4;
+}
+.btn-decline:hover{
+    opacity: 1;
+}
+.btn-decline, .btn-accept {
+    text-align: center;
+    justify-content: center;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 1rem 0.3rem 0.5rem;
+}
+table{
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+td, th{
+    text-align: center;
+}
+td:nth-child(1), th:nth-child(1) { min-width: 60px; }   /* Cover */
+td:nth-child(2), th:nth-child(2) { min-width: 150px; }  /* Title */
+td:nth-child(3), th:nth-child(3) { min-width: 120px; }  /* Author */
+td:nth-child(4), th:nth-child(4) { min-width: 100px; }  /* ISBN */
+td:nth-child(5), th:nth-child(5) { min-width: 90px; }   /* Category */
+td:nth-child(6), th:nth-child(6) { min-width: 90px; }   /* Genre */
+td:nth-child(7), th:nth-child(7) { min-width: 120px; }  /* Publisher */
+td:nth-child(8), th:nth-child(8) { min-width: 55px; }   /* Year */
+td:nth-child(9), th:nth-child(9) { min-width: 55px; }   /* Total */
+td:nth-child(10), th:nth-child(10) { min-width: 75px; } /* Available */
+td:nth-child(11), th:nth-child(11) { min-width: 90px; } /* Date Added */
+td:nth-child(12), th:nth-child(12) { min-width: 110px; }/* Actions */

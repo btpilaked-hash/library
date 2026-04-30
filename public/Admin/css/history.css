@@ -420,11 +420,13 @@ th, td {
     text-overflow: ellipsis;
     max-width: 150px;
     padding: 0.6rem 0.8rem;
+    text-align: center;
+    height: 4rem;
 }
 
 /* Wider columns for title/author */
-th:first-child, td:first-child { max-width: 50px; width: 50px; } /* Show button */
-th:nth-child(2), td:nth-child(2) { max-width: 180px; }  /* Title */
+th:first-child, td:first-child { max-width: 100px; width: 100px; } /* Show button */
+th:nth-child(2), td:nth-child(2) { max-width: 180px; position: relative}  /* Title */
 th:nth-child(3), td:nth-child(3) { max-width: 130px; }  /* Author */
 
 /* ===== TOOLTIP on hover ===== */
@@ -440,8 +442,9 @@ td[title]:hover::after {
     white-space: normal;
     max-width: 250px;
     z-index: 9999;
-    margin-top: -30px;
+    top: 0;
     left: 0;
+    transform: none;
     word-break: break-word;
 }
 td[title] { position: relative; cursor: default; }
