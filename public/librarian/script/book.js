@@ -375,7 +375,7 @@ function filterBooks() {
             </td>
             <td title="${book.title || ""}">${book.title}</td>
             <td title="${book.author || ""}">${book.author}</td>
-            <td>${book.isbn || "—"}</td>
+            <td title="${book.isbn || ""}">${book.isbn || "—"}</td>
             <td>${book.category || "—"}</td>
             <td>${book.genre || "—"}</td>
             <td title="${book.publisher || ""}">${book.publisher}</td>
