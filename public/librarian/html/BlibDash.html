@@ -41,14 +41,14 @@
             <!-- FRONT -->
             <div class="card-face front">
                 <img src="LOGOFIN.png" alt="LOGO" class="lo">
-                <img alt="Librarian Profile" class="profile" id="profile-pic">
+                <img src="lib.webp" alt="Librarian Profile" class="profile">
+                <!--id="profile-pic" = line 44-->
                 <h2 id="card-name">—</h2>
                 <p>Librarian</p>
                 <div class="details">
                     <h7><strong>Office:</strong> CCIT Library</h7>
                 </div>
             </div>
-
             <!-- BACK -->
             <div class="card-face back">
                 <img src="seal.png" alt="Seal" class="pro">
@@ -61,7 +61,6 @@
 
         </div>
     </section>
-
     <!-- Dashboard Stats -->
     <section class="dashboard-cards">
         <div class="card">
@@ -133,7 +132,7 @@
                         profileImg.src              = `${SERVER}${data.picture}`;
                         profileImg.style.display    = "block";
                     } else {
-                        profileImg.src = "ben.jpg";
+                        profileImg.src = "lib.webp";
                     }
                 }
             }
