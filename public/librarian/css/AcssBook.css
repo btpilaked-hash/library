@@ -79,7 +79,6 @@ aside{
     justify-content:space-evenly;
     height:80vh;
     flex:1;
-    display:flex;
 }
 
 .nav button{
