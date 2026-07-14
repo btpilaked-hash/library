@@ -1,16 +1,19 @@
 const express = require("express");
 const router  = express.Router();
 const multer  = require("multer");
-const path    = require("path");
-const fs      = require("fs");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const { cloudinary }        = require("../config/cloudinary");
 
-// ── Multer: save to /uploadAdmin/ with a temp name, controller finalises it ──
-const uploadDir = path.join(__dirname, "..", "uploadAdmin");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename:    (req, file, cb) => cb(null, `tmp-logo-${Date.now()}${path.extname(file.originalname)}`),
+// ── Multer → Cloudinary, fixed public_id so every upload overwrites the last ──
+const storage = new CloudinaryStorage({
+    cloudinary,
+    params: {
+        folder:          "ccit_library/branding",
+        public_id:       () => "student-logo",
+        overwrite:       true,
+        invalidate:      true,
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    },
 });
 const upload = multer({
     storage,

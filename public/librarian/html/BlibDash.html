@@ -160,8 +160,18 @@
         } catch (err) { console.error("Stats fetch error:", err); }
     }
 
+    async function loadSidebarLogo() {
+        try {
+            const res  = await fetch(`${SERVER}/api/admin/logo`);
+            const data = await res.json();
+            const img  = document.getElementById("sidebar-logo");
+            if (img && data.url) img.src = `${data.url}?t=${Date.now()}`;
+        } catch (_) {}
+    }
+
     loadProfile();
     loadStats();
+    loadSidebarLogo();
 </script>
 
 </main>

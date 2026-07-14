@@ -176,12 +176,15 @@ async function markLost(requestId) {
         message.innerText = "Cannot connect to server.";
     }
 }
+
+loadBorrowedBooks();
+
+// ── Load shared logo (set by admin) into sidebar ──────────────────────────
 (async function loadSidebarLogo() {
     try {
         const res  = await fetch(`${SERVER}/api/admin/logo`);
         const data = await res.json();
-        if (data.url) document.getElementById("sidebar-logo").src = `${SERVER}${data.url}`;
+        const img  = document.getElementById("sidebar-logo");
+        if (img && data.url) img.src = `${data.url}?t=${Date.now()}`;
     } catch (_) {}
 })();
-
-loadBorrowedBooks();

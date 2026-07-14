@@ -310,15 +310,17 @@ const setLibrarianStatus = async (req, res) => {
 
 // ═══════════════════════════════════════════════════════
 //  LOGO — upload (POST) and fetch (GET)
-//  Image is saved to /uploadAdmin/ on disk.
-//  getLogo returns the public URL path.
+//  Image is stored on Cloudinary (folder: ccit_library/branding,
+//  fixed public_id so re-uploads overwrite the previous logo).
+//  A small local JSON file just caches the current Cloudinary URL
+//  so getLogo doesn't need to call the Cloudinary API every time.
 // ═══════════════════════════════════════════════════════
 const fs        = require("fs");
 const path      = require("path");
-const UPLOAD_DIR = path.join(__dirname, "..", "uploadAdmin");
-const LOGO_META  = path.join(UPLOAD_DIR, "student-logo.meta.json");
+const META_DIR  = path.join(__dirname, "..", "uploadAdmin");
+const LOGO_META = path.join(META_DIR, "student-logo.meta.json");
 
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+if (!fs.existsSync(META_DIR)) fs.mkdirSync(META_DIR, { recursive: true });
 
 const uploadLogo = async (req, res) => {
     try {
@@ -326,21 +328,14 @@ const uploadLogo = async (req, res) => {
             return res.status(400).json({ message: "No file uploaded" });
         }
 
-        const ext      = path.extname(req.file.originalname).toLowerCase() || ".png";
-        const filename = `student-logo${ext}`;
-        const destPath = path.join(UPLOAD_DIR, filename);
+        // multer-storage-cloudinary gives us the Cloudinary secure_url on .path
+        // and the public_id on .filename
+        const url       = req.file.path;
+        const public_id = req.file.filename;
 
-        // Remove any old logo files (different extension)
-        try {
-            fs.readdirSync(UPLOAD_DIR)
-                .filter(f => f.startsWith("student-logo.") && !f.endsWith(".meta.json"))
-                .forEach(f => fs.unlinkSync(path.join(UPLOAD_DIR, f)));
-        } catch (_) {}
+        fs.writeFileSync(LOGO_META, JSON.stringify({ url, public_id, updatedAt: new Date() }));
 
-        fs.renameSync(req.file.path, destPath);
-        fs.writeFileSync(LOGO_META, JSON.stringify({ filename, updatedAt: new Date() }));
-
-        res.json({ message: "Logo updated successfully", url: `/uploadAdmin/${filename}` });
+        res.json({ message: "Logo updated successfully", url });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -349,10 +344,8 @@ const uploadLogo = async (req, res) => {
 const getLogo = async (req, res) => {
     try {
         if (!fs.existsSync(LOGO_META)) return res.json({ url: null });
-        const meta     = JSON.parse(fs.readFileSync(LOGO_META, "utf8"));
-        const filePath = path.join(UPLOAD_DIR, meta.filename);
-        if (!fs.existsSync(filePath)) return res.json({ url: null });
-        res.json({ url: `/uploadAdmin/${meta.filename}` });
+        const meta = JSON.parse(fs.readFileSync(LOGO_META, "utf8"));
+        res.json({ url: meta.url || null });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
