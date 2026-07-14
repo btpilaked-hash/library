@@ -100,5 +100,12 @@ async function respond(requestId, status) {
         message.innerText = "Cannot connect to server.";
     }
 }
+(async function loadSidebarLogo() {
+    try {
+        const res  = await fetch(`${SERVER}/api/admin/logo`);
+        const data = await res.json();
+        if (data.url) document.getElementById("sidebar-logo").src = `${SERVER}${data.url}`;
+    } catch (_) {}
+})();
 
 loadRequests();

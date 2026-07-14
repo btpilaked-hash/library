@@ -91,7 +91,7 @@ function openModal(book) {
         toggleIsbnRequired();
         document.getElementById("f_genre").value           = book.genre    || "";
         document.getElementById("preview").innerHTML       = book.image
-            ? `<img src="http://localhost:3000${book.image}">` : "Cover";
+            ? `<img src="${book.image}">` : "Cover";
     } else {
         document.getElementById("modalTitle").innerText    = "Official Accession Record";
         document.getElementById("editBookMongoId").value   = "";
@@ -405,5 +405,12 @@ function closeImgPopup() {
 document.getElementById("imgPopup").addEventListener("click", function(e) {
     if (e.target === this) closeImgPopup();
 });
+(async function loadSidebarLogo() {
+    try {
+        const res  = await fetch(`${SERVER}/api/admin/logo`);
+        const data = await res.json();
+        if (data.url) document.getElementById("sidebar-logo").src = `${SERVER}${data.url}`;
+    } catch (_) {}
+})();
 
 loadBooks();

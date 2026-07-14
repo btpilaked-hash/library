@@ -126,5 +126,12 @@ function renderStudents() {
         tbody.appendChild(tr);
     });
 }
+(async function loadSidebarLogo() {
+    try {
+        const res  = await fetch(`${SERVER}/api/admin/logo`);
+        const data = await res.json();
+        if (data.url) document.getElementById("sidebar-logo").src = `${SERVER}${data.url}`;
+    } catch (_) {}
+})();
 
 loadStudents();

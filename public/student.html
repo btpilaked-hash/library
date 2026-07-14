@@ -6,18 +6,22 @@
     <title>Student Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="student.css">
 </head>
 <body>
 
 <header>
-    <img src="luh.png" alt="LOGO" class="logo">
+    <div class="logo-container">
+        <img id="header-logo" src="luh.png" alt="LOGO" class="logo">
+        <h2 class="system-title">CCIT Library System</h2>
+    </div>
     <div class="nav-actions">
         <div class="favorites-btn" id="favoritesBtn" aria-label="Favorites" tabindex="0">
             <i class="fa-regular fa-heart icon-btn"></i>
         </div>
-        <div class="info-btn" id="infoBtn" aria-label="Info" tabindex="0">
-            <i class="fa-solid fa-circle-info"></i>
+       <div class="info-btn" id="infoBtn" aria-label="Info" tabindex="0">
+             <i class="fa-solid fa-circle-info"></i>
         </div>
         <div class="profile-btn" id="profileBtn" aria-label="Profile" tabindex="0">
             <i class="fa-solid fa-user"></i>
@@ -35,13 +39,9 @@
     </div>
 </div>
 
-<!-- INFO DROPDOWN -->
+<!-- INFO DROPDOWN-->
 <div id="info-dropdown" aria-hidden="true">
     <div class="dropdown-card info-card">
-        <div class="info-header">
-            <img id="info-logo" src="luh.png" alt="College Logo" style="height:40px;width:auto;">
-            <h3 class="info-title" id="info-system-name">CCIT Library System</h3>
-        </div>
         <div class="info-divider"></div>
         <div class="info-body">
             <h4>About the System</h4>
@@ -96,7 +96,6 @@
 <script>
     const SERVER = window.location.origin;
     const BASE   = `${SERVER}/api/students`;
-    const RECOMMEND_BASE = `${SERVER}/api/recommend`;
 
     const token = localStorage.getItem("token");
     const role  = localStorage.getItem("role");
