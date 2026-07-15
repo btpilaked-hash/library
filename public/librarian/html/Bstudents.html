@@ -349,6 +349,16 @@
         } catch (err) { message.innerText = "Cannot connect to server."; }
     }
 
+    // ── Load shared logo (set by admin) into sidebar ───────────────────────
+    (async function loadSidebarLogo() {
+        try {
+            const res  = await fetch(`${SERVER}/api/admin/logo`);
+            const data = await res.json();
+            const img  = document.getElementById("sidebar-logo");
+            if (img && data.url) img.src = `${data.url}?t=${Date.now()}`;
+        } catch (_) {}
+    })();
+
     loadStudents();
 </script>
 

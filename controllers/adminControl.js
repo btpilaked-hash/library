@@ -324,7 +324,7 @@ const uploadLogo = async (req, res) => {
             return res.status(400).json({ message: "No file uploaded" });
         }
 
-        // multer-storage-cloudinary gives us the Cloudinary secure_url on .path
+        // multer-storage-cloudinary gives us the Cloudinary    secure_url on .path
         // and the public_id on .filename
         const url       = req.file.path;
         const public_id = req.file.filename;
