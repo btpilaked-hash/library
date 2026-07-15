@@ -312,15 +312,11 @@ const setLibrarianStatus = async (req, res) => {
 //  LOGO — upload (POST) and fetch (GET)
 //  Image is stored on Cloudinary (folder: ccit_library/branding,
 //  fixed public_id so re-uploads overwrite the previous logo).
-//  A small local JSON file just caches the current Cloudinary URL
-//  so getLogo doesn't need to call the Cloudinary API every time.
+//  The current Cloudinary URL is cached in MongoDB Atlas (NOT local
+//  disk — Render's filesystem is ephemeral and wipes on every
+//  restart/redeploy, which is why a local JSON file kept "resetting").
 // ═══════════════════════════════════════════════════════
-const fs        = require("fs");
-const path      = require("path");
-const META_DIR  = path.join(__dirname, "..", "uploadAdmin");
-const LOGO_META = path.join(META_DIR, "student-logo.meta.json");
-
-if (!fs.existsSync(META_DIR)) fs.mkdirSync(META_DIR, { recursive: true });
+const Setting = require("../models/setting");
 
 const uploadLogo = async (req, res) => {
     try {
@@ -333,7 +329,11 @@ const uploadLogo = async (req, res) => {
         const url       = req.file.path;
         const public_id = req.file.filename;
 
-        fs.writeFileSync(LOGO_META, JSON.stringify({ url, public_id, updatedAt: new Date() }));
+        await Setting.findOneAndUpdate(
+            { key: "student_logo" },
+            { key: "student_logo", value: { url, public_id } },
+            { upsert: true, new: true }
+        );
 
         res.json({ message: "Logo updated successfully", url });
     } catch (err) {
@@ -343,9 +343,8 @@ const uploadLogo = async (req, res) => {
 
 const getLogo = async (req, res) => {
     try {
-        if (!fs.existsSync(LOGO_META)) return res.json({ url: null });
-        const meta = JSON.parse(fs.readFileSync(LOGO_META, "utf8"));
-        res.json({ url: meta.url || null });
+        const setting = await Setting.findOne({ key: "student_logo" });
+        res.json({ url: setting?.value?.url || null });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
